@@ -51,4 +51,4 @@ O diretorio `src/app` nao contem regra de negocio. Cada arquivo de rota apenas m
 - Reservas, viagens e planejamento: `features/operations`.
 - Mapa e polling de localizacao: `features/monitoring`.
 - Navegacao e layout administrativo: `features/shell`.
-- Cliente HTTP e armazenamento de token: `shared/infrastructure`.
+- Cliente HTTP compartilhado: `shared/infrastructure`. A sessão administrativa usa cookie HttpOnly emitido pela API e nunca é armazenada no JavaScript.

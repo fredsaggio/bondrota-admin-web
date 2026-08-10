@@ -1,7 +1,5 @@
 'use client';
 
-import { clearToken, getToken } from '@/shared/infrastructure/browser/token-storage';
-
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1').replace(/\/$/, '');
 
 export class ApiError extends Error {
@@ -22,6 +20,7 @@ function friendlyMessage(status: number, raw: string) {
     'resource not found': 'Registro não encontrado.',
     'resource already exists': 'Já existe um registro com esses dados.',
     'reservation deadline has passed': 'O prazo para esta reserva já foi encerrado.',
+    'too many login attempts': 'Muitas tentativas de acesso. Aguarde um minuto e tente novamente.',
   };
   const normalized = raw.trim().toLowerCase();
   if (known[normalized]) return known[normalized];
@@ -42,10 +41,6 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   requestHeaders.set('Accept', 'application/json');
 
   if (body !== undefined) requestHeaders.set('Content-Type', 'application/json');
-  if (auth) {
-    const token = getToken();
-    if (token) requestHeaders.set('Authorization', `Bearer ${token}`);
-  }
 
   let response: Response;
   try {
@@ -54,6 +49,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       headers: requestHeaders,
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: 'no-store',
+      credentials: 'include',
     });
   } catch {
     throw new ApiError(0, 'Não foi possível conectar à API do BondRota.');
@@ -62,7 +58,6 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   if (!response.ok) {
     const raw = await response.text().catch(() => '');
     if (response.status === 401 && auth) {
-      clearToken();
       window.dispatchEvent(new Event('bondrota:unauthorized'));
     }
     throw new ApiError(response.status, friendlyMessage(response.status, raw));

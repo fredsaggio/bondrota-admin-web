@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AdminSession } from '@/features/auth/domain/session';
-import { loadStoredAdminSession, loginAdmin, removeAdminSession } from '@/features/auth/application/admin-session';
+import { loadAdminSession, loginAdmin, logoutAdmin } from '@/features/auth/application/admin-session';
 
 interface AuthContextValue {
   session: AdminSession | null;
@@ -20,22 +20,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AdminSession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(() => {
-    removeAdminSession();
+  const clearSession = useCallback(() => {
     setSession(null);
     router.replace('/');
   }, [router]);
 
+  const logout = useCallback(() => {
+    void logoutAdmin().finally(clearSession);
+  }, [clearSession]);
+
   useEffect(() => {
     let cancelled = false;
-    Promise.resolve().then(() => {
-      if (cancelled) return;
-      const current = loadStoredAdminSession();
-      setSession(current);
-      setLoading(false);
-      if (!current && pathname.startsWith('/dashboard')) router.replace('/');
-      if (current && pathname === '/') router.replace('/dashboard');
-    });
+    loadAdminSession()
+      .catch(() => null)
+      .then((current) => {
+        if (cancelled) return;
+        setSession(current);
+        setLoading(false);
+        if (!current && pathname.startsWith('/dashboard')) router.replace('/');
+        if (current && pathname === '/') router.replace('/dashboard');
+      });
     return () => { cancelled = true; };
   }, [pathname, router]);
 
