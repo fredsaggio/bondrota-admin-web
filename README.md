@@ -12,6 +12,12 @@ npm run dev
 
 A aplicacao usa `NEXT_PUBLIC_API_URL` como URL base da API. O valor deve incluir `/api/v1`.
 
+## Arquitetura
+
+O codigo-fonte fica em `src/` e segue uma Clean Architecture pragmatica organizada por feature. Rotas ficam em `src/app`, regras e telas em `src/features` e recursos transversais em `src/shared`.
+
+Consulte [docs/frontend-architecture.md](docs/frontend-architecture.md) para as camadas, regras de dependencia e convencoes do projeto.
+
 ## Funcionalidades
 
 - Login exclusivo para administradores
