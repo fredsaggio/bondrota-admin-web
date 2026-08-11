@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowDown, ArrowUp, FileUp, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type MouseEvent } from 'react';
+import { ArrowDown, ArrowUp, Eye, FileUp, Plus, Trash2 } from 'lucide-react';
 import { municipios, storage } from '@/features/registrations/infrastructure/registrations-api';
 import type { Municipio, Parada } from '@/features/registrations/domain/models';
 import type { EntityKey, RegistryRecord, RegistryReferences } from '@/features/registrations/domain/registry';
@@ -183,8 +183,43 @@ function Weekdays({ defaultValues }: { defaultValues: number[] }) {
 function UploadField({ label, bucket, folder, accept, current, onUploaded }: { label: string; bucket: 'fotos' | 'documentos'; folder: string; accept: string; current: string; onUploaded(value: string): void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [viewing, setViewing] = useState(false);
   const upload = async (file?: File) => { if (!file) return; setBusy(true); setError(''); try { onUploaded(await storage.upload(file, bucket, folder)); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no upload.'); } finally { setBusy(false); } };
-  return <label className="sm:col-span-2"><span className="field-label">{label}</span><span className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4"><FileUp size={19} className="text-[#426fa8]" /><span className="min-w-0 flex-1"><b className="block truncate text-xs text-slate-600">{busy ? 'Enviando...' : current || 'Selecionar arquivo'}</b>{error && <small className="text-red-600">{error}</small>}</span><input className="hidden" type="file" accept={accept} disabled={busy} onChange={(event) => void upload(event.target.files?.[0])} /></span></label>;
+  const view = async (event: MouseEvent<HTMLButtonElement>) => {
+    // A label inteira abre o seletor de arquivo ao ser clicada; sem isso o clique
+    // no botão "ver" também dispararia o input de upload escondido.
+    event.preventDefault();
+    event.stopPropagation();
+    if (!current || viewing) return;
+    setViewing(true);
+    setError('');
+    try {
+      const signed = await storage.signedDownload({ bucket, path: current });
+      window.open(signed.signed_url, '_blank', 'noopener,noreferrer');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível abrir o arquivo.');
+    } finally {
+      setViewing(false);
+    }
+  };
+  return (
+    <label className="sm:col-span-2">
+      <span className="field-label">{label}</span>
+      <span className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4">
+        <FileUp size={19} className="text-[#426fa8]" />
+        <span className="min-w-0 flex-1">
+          <b className="block truncate text-xs text-slate-600">{busy ? 'Enviando...' : current || 'Selecionar arquivo'}</b>
+          {error && <small className="text-red-600">{error}</small>}
+        </span>
+        {current && (
+          <button type="button" className="icon-btn !h-8 !w-8 shrink-0" onClick={(event) => void view(event)} disabled={viewing} title="Ver arquivo">
+            <Eye size={14} />
+          </button>
+        )}
+        <input className="hidden" type="file" accept={accept} disabled={busy} onChange={(event) => void upload(event.target.files?.[0])} />
+      </span>
+    </label>
+  );
 }
 
 function routeStopIds(record: RegistryRecord | null) {
