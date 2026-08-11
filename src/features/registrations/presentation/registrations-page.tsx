@@ -26,7 +26,6 @@ const entities: EntityDefinition[] = [
   { key: 'motoristas', label: 'Motoristas', singular: 'motorista', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'turno', label: 'Turno' }, { key: 'municipio_trabalho_id', label: 'Cidade de trabalho' }] },
   { key: 'clientes', label: 'Clientes', singular: 'cliente', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'telefone', label: 'Telefone' }, { key: 'data_nasc', label: 'Nascimento' }] },
   { key: 'vinculos', label: 'Vínculos', singular: 'vínculo', genero: 'm', columns: [{ key: 'cliente_nome', label: 'Cliente' }, { key: 'tipo', label: 'Tipo' }, { key: 'turno', label: 'Turno' }, { key: 'destino_id', label: 'Destino' }, { key: 'validade', label: 'Validade' }] },
-  { key: 'admins', label: 'Administradores', singular: 'administrador', genero: 'm', columns: [{ key: 'email', label: 'E-mail' }] },
 ];
 
 function newLabel(definition: EntityDefinition) {

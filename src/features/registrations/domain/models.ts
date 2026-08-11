@@ -1,6 +1,5 @@
 import type { Turno, TurnoOperacional } from '@/shared/domain/transport';
 
-export interface Admin { id: number; email: string }
 export interface Municipio { codigo_ibge: number; nome: string; uf: string }
 export interface Destino { id: number; nome: string; rua: string; municipio_id: number; latitude: number; longitude: number }
 export interface Parada { id: number; nome: string; latitude: number; longitude: number }

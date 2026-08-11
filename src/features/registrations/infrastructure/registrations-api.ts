@@ -1,8 +1,10 @@
 import { api, uploadToSignedURL } from '@/shared/infrastructure/http/api-client';
 import { createRestCollection, type JsonRecord } from '@/shared/infrastructure/http/rest-collection';
-import type { Admin, Cliente, Destino, HorarioTurno, Motorista, Municipio, Parada, RotaInterna, Veiculo, Vinculo, VinculoComCliente } from '@/features/registrations/domain/models';
+import type { Cliente, Destino, HorarioTurno, Motorista, Municipio, Parada, RotaInterna, Veiculo, Vinculo, VinculoComCliente } from '@/features/registrations/domain/models';
 
-export const admins = createRestCollection<Admin>('/admin');
+// Administradores não são gerenciados pelo painel: criar/editar/remover admin é
+// feito fora da aplicação, com acesso direto ao banco, para que uma sessão de
+// admin comprometida não consiga criar novos acessos nem apagar os existentes.
 export const destinos = {
   ...createRestCollection<Destino>('/destinos'),
   listByMunicipio: (municipioId: number) => api<Destino[]>(`/destinos/municipio/${municipioId}`),

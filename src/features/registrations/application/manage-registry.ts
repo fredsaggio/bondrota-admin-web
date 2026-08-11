@@ -1,4 +1,4 @@
-import { admins, clientes, destinos, horarios, motoristas, paradas, rotasInternas, veiculos, vinculos } from '@/features/registrations/infrastructure/registrations-api';
+import { clientes, destinos, horarios, motoristas, paradas, rotasInternas, veiculos, vinculos } from '@/features/registrations/infrastructure/registrations-api';
 import type { EntityKey, RegistryPageData, RegistryReferences, RegistryRecord } from '@/features/registrations/domain/registry';
 
 /**
@@ -14,7 +14,6 @@ const requiredReferences: Record<EntityKey, ReadonlyArray<keyof RegistryReferenc
   motoristas: [],
   clientes: [],
   vinculos: ['clientes', 'destinos', 'rotas'],
-  admins: [],
 };
 
 export async function loadRegistry(entity: EntityKey): Promise<RegistryPageData> {
@@ -42,7 +41,6 @@ async function loadEntity(entity: EntityKey): Promise<RegistryRecord[]> {
     case 'veiculos': return (await veiculos.list()).map((item) => ({ ...item, categoria_label: ({ executivo: 'Executivo', escolar: 'Escolar', carro_7_lugares: 'Carro 7 lugares' } as Record<string, string>)[item.categoria] }));
     case 'motoristas': return (await motoristas.list()).map((item) => ({ ...item }));
     case 'clientes': return (await clientes.list()).map((item) => ({ ...item }));
-    case 'admins': return (await admins.list()).map((item) => ({ ...item }));
     case 'vinculos': return (await vinculos.list()).map((item) => ({ ...item }));
   }
 }
@@ -56,7 +54,6 @@ export async function saveRegistryRecord(entity: EntityKey, record: RegistryReco
     case 'veiculos': return id ? veiculos.update(id, payload) : veiculos.create(payload);
     case 'motoristas': return id ? motoristas.update(id, payload) : motoristas.create(payload);
     case 'clientes': return id ? clientes.update(id, payload) : clientes.create(payload);
-    case 'admins': return id ? admins.update(id, payload) : admins.create(payload);
     case 'rotas': {
       const stopIds = payload.parada_ids as number[];
       if (!stopIds.length) throw new Error('Adicione pelo menos uma parada à rota.');
@@ -80,7 +77,6 @@ export function removeRegistryRecord(entity: EntityKey, record: RegistryRecord) 
     case 'veiculos': return veiculos.remove(record.id);
     case 'motoristas': return motoristas.remove(record.id);
     case 'clientes': return clientes.remove(record.id);
-    case 'admins': return admins.remove(record.id);
     case 'vinculos': return vinculos.remove(Number(record.cliente_id), record.id);
   }
 }

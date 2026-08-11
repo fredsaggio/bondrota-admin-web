@@ -103,11 +103,6 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <Weekdays defaultValues={(record?.horarios_fixos as Array<{ dia_semana: number }> | undefined)?.map((item) => item.dia_semana) ?? []} />
           <UploadField label="Comprovante" bucket="documentos" folder="comprovantes" accept="application/pdf,image/*" current={comprovante} onUploaded={setComprovante} />
         </>}
-
-        {entity === 'admins' && <>
-          <Field label="E-mail" name="email" type="email" defaultValue={value(record, 'email')} required span />
-          {!record && <Field label="Senha inicial" name="senha" type="password" required span />}
-        </>}
       </div>
 
       {error && <div className="mx-5 mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
@@ -135,7 +130,6 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
     case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: text('cpf'), senha: text('senha') }), telefone: text('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: photo };
     case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: text('cpf'), senha: text('senha') }), telefone: text('telefone'), data_nasc: text('data_nasc'), foto: photo };
     case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante };
-    case 'admins': return { email: text('email'), ...(record ? {} : { senha: text('senha') }) };
   }
 }
 

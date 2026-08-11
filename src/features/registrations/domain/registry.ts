@@ -1,6 +1,6 @@
 import type { Cliente, Destino, Parada, RotaInterna } from '@/features/registrations/domain/models';
 
-export type EntityKey = 'destinos' | 'paradas' | 'rotas' | 'horarios' | 'veiculos' | 'motoristas' | 'clientes' | 'vinculos' | 'admins';
+export type EntityKey = 'destinos' | 'paradas' | 'rotas' | 'horarios' | 'veiculos' | 'motoristas' | 'clientes' | 'vinculos';
 
 export interface RegistryRecord {
   id: number;
