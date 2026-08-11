@@ -37,11 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setSession(current);
         setLoading(false);
-        if (!current && pathname.startsWith('/dashboard')) router.replace('/');
-        if (current && pathname === '/') router.replace('/dashboard');
       });
     return () => { cancelled = true; };
-  }, [pathname, router]);
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!session && pathname.startsWith('/dashboard')) router.replace('/');
+    if (session && pathname === '/') router.replace('/dashboard');
+  }, [loading, session, pathname, router]);
 
   useEffect(() => {
     window.addEventListener('bondrota:unauthorized', logout);

@@ -4,4 +4,5 @@ export type Sentido = 'ida' | 'volta';
 
 export interface AppConfig {
   cidade_base: string;
+  fuso_horario: string;
 }

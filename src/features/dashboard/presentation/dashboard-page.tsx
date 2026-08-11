@@ -18,13 +18,18 @@ function localDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(`${value}T12:00:00`));
 }
 
+/** Data de hoje no fuso operacional (`AppConfig.fuso_horario`), no formato YYYY-MM-DD. */
+function todayInTimeZone(timeZone: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
+}
+
 export function DashboardPage() {
   const resource = useResource(loadDashboard);
 
   const metrics = useMemo(() => {
     const data = resource.data;
     if (!data) return null;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInTimeZone(data.timeZone);
     const activeBookings = data.bookingItems.filter((item) => item.status === 'confirmada').length;
     const todaysTrips = data.tripItems.filter((item) => item.ciclo.data_viagem === today);
     const activeFleet = data.vehicleItems.filter((item) => item.status === 'ativo').length;
