@@ -24,18 +24,17 @@ test.describe('Smoke de autenticacao na stack publicada', () => {
     await page.goto('/');
     await submitLogin(page, { email, senha });
 
+    // O primeiro GET /admin/session acontece no mount e responde 401 por
+    // design — ainda nao houve login. So interessa se algum chega a 200,
+    // porque e isso que prova que o cookie atravessou os dois dominios.
     await expect
-      .poll(() => sessionStatuses.length, {
-        message: 'o front nao chegou a consultar GET /admin/session',
+      .poll(() => sessionStatuses.filter((status) => status === 200).length, {
+        message:
+          'GET /admin/session nunca respondeu com sessao apos um login valido: ' +
+          'o browser nao enviou o cookie. Verifique AUTH_COOKIE_SAME_SITE=none ' +
+          'e AUTH_COOKIE_SECURE=true na API.',
       })
       .toBeGreaterThan(0);
-
-    expect(
-      sessionStatuses.at(-1),
-      'GET /admin/session respondeu sem sessao logo apos um login valido: ' +
-        'o browser nao enviou o cookie. Verifique AUTH_COOKIE_SAME_SITE=none ' +
-        'e AUTH_COOKIE_SECURE=true na API.',
-    ).toBe(200);
   });
 
   test('login real abre o dashboard e a sessao sobrevive ao reload', async ({ page }) => {
