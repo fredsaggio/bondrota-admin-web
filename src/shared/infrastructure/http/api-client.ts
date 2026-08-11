@@ -21,6 +21,9 @@ function friendlyMessage(status: number, raw: string) {
     'resource already exists': 'Já existe um registro com esses dados.',
     'reservation deadline has passed': 'O prazo para esta reserva já foi encerrado.',
     'too many login attempts': 'Muitas tentativas de acesso. Aguarde um minuto e tente novamente.',
+    // Vem com 403 na troca de senha. Sem esta entrada cairia na mensagem genérica
+    // de permissão logo abaixo, que não diz o que a pessoa precisa corrigir.
+    'senha atual incorreta': 'A senha atual está incorreta.',
   };
   const normalized = raw.trim().toLowerCase();
   if (known[normalized]) return known[normalized];

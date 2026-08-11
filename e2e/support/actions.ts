@@ -22,6 +22,23 @@ export function logoutButton(page: Page) {
   return page.getByRole('button', { name: 'Sair' });
 }
 
+/** Modal de troca de senha (`change-password-dialog.tsx`). */
+export function changePasswordDialog(page: Page) {
+  const dialog = page.getByRole('dialog');
+  return {
+    dialog,
+    // O botao da sidebar tem o mesmo texto do submit, por isso um fica fora do
+    // dialog e o outro dentro.
+    open: page.locator('aside').getByRole('button', { name: 'Trocar senha' }).first(),
+    atual: dialog.locator('#senha_atual'),
+    nova: dialog.locator('#nova_senha'),
+    confirmacao: dialog.locator('#confirmacao'),
+    submit: dialog.getByRole('button', { name: 'Trocar senha' }),
+    error: dialog.locator('.border-red-200'),
+    success: dialog.getByText('Sua senha foi alterada'),
+  };
+}
+
 /** Preenche e envia o formulario de login. Nao afirma o resultado. */
 export async function submitLogin(
   page: Page,

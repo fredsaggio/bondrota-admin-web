@@ -29,3 +29,14 @@ export async function fetchAdminSession(): Promise<AdminSession | null> {
 export async function terminateAdminSession() {
   return api<void>('/admin/logout', { method: 'POST', auth: false });
 }
+
+/**
+ * Troca a senha do próprio admin. A conta alvo sai do JWT na API — não há como
+ * mirar outra. A API reemite o cookie de sessão, então esta aba continua logada.
+ */
+export async function changeAdminPassword(senhaAtual: string, novaSenha: string) {
+  return api<void>('/admin/senha', {
+    method: 'PUT',
+    body: { senha_atual: senhaAtual, nova_senha: novaSenha },
+  });
+}

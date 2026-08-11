@@ -76,6 +76,25 @@ export async function mockApi(
       return route.fulfill({ status: 204 });
     }
 
+    // Espelha o contrato da troca de senha, incluindo o 403 (e nao 401) para senha
+    // atual errada — e justamente esse status que impede o painel de deslogar quem
+    // so errou a digitacao.
+    if (path === '/admin/senha' && method === 'PUT') {
+      if (!authenticated) return unauthorized(route);
+      const body = request.postDataJSON() as { senha_atual?: string; nova_senha?: string } | null;
+      if (body?.senha_atual !== TEST_ADMIN.senha) {
+        return route.fulfill({ status: 403, contentType: 'text/plain', body: 'senha atual incorreta' });
+      }
+      if ((body?.nova_senha ?? '').length < 8) {
+        return route.fulfill({
+          status: 400,
+          contentType: 'text/plain',
+          body: 'a senha precisa de pelo menos 8 caracteres',
+        });
+      }
+      return route.fulfill({ status: 204 });
+    }
+
     if (path === '/admin/session') {
       if (!authenticated) return unauthorized(route);
       return json(route, {

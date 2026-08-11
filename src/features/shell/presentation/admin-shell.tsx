@@ -4,8 +4,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { BusFront, Database, LayoutDashboard, LogOut, Map, Menu, PanelLeftClose, PanelLeftOpen, Route, X } from 'lucide-react';
+import { BusFront, Database, KeyRound, LayoutDashboard, LogOut, Map, Menu, PanelLeftClose, PanelLeftOpen, Route, X } from 'lucide-react';
 import { useAuth } from '@/features/auth/presentation/auth-provider';
+import { ChangePasswordDialog } from '@/features/auth/presentation/change-password-dialog';
 import { config } from '@/shared/infrastructure/config/config-api';
 
 const navigation = [
@@ -20,6 +21,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { session, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [baseCity, setBaseCity] = useState('Operação local');
 
   useEffect(() => {
@@ -63,6 +65,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         )}
+        <button className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-slate-300 hover:bg-white/7 hover:text-white" onClick={() => { setChangingPassword(true); setMobileOpen(false); }} title={collapsed ? 'Trocar senha' : undefined}>
+          <KeyRound size={17} />
+          {!collapsed && <span>Trocar senha</span>}
+        </button>
         <button className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-slate-300 hover:bg-white/7 hover:text-white" onClick={logout} title={collapsed ? 'Sair' : undefined}>
           <LogOut size={17} />
           {!collapsed && <span>Sair</span>}
@@ -104,6 +110,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </header>
         <main>{children}</main>
       </div>
+
+      {changingPassword && <ChangePasswordDialog onClose={() => setChangingPassword(false)} />}
     </div>
   );
 }
