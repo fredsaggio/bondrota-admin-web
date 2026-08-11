@@ -106,6 +106,24 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # A Vercel responde "Could not retrieve Project Settings" tanto para secret
+      # ausente quanto para token sem acesso ao time. Checar antes separa os dois.
+      - name: Check required secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          [ -n "$VERCEL_TOKEN" ] || missing="$missing VERCEL_TOKEN"
+          [ -n "$VERCEL_ORG_ID" ] || missing="$missing VERCEL_ORG_ID"
+          [ -n "$VERCEL_PROJECT_ID" ] || missing="$missing VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets ausentes ou vazios:$missing"
+            echo "Configure em Settings > Secrets and variables > Actions > Repository secrets."
+            exit 1
+          fi
+          echo "Os tres secrets estao presentes."
+          echo "ORG_ID começa com: $(printf '%.5s' "$VERCEL_ORG_ID")..."
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
