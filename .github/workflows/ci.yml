@@ -82,3 +82,51 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  deploy:
+    name: Deploy to Vercel
+    # O gate: nada e publicado antes de lint, typecheck, build e e2e passarem.
+    needs: [quality, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Push no main publica em producao; PR gera um preview isolado.
+      TARGET_ENV: ${{ github.event_name == 'push' && 'production' || 'preview' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Traz as variaveis do projeto na Vercel (inclusive NEXT_PUBLIC_API_URL,
+      # que e embutida no bundle em build time).
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=$TARGET_ENV --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build ${{ env.TARGET_ENV == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt ${{ env.TARGET_ENV == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Publish deploy URL
+        run: |
+          {
+            echo "### Deploy ($TARGET_ENV)"
+            echo ""
+            echo "${{ steps.deploy.outputs.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -41,9 +41,20 @@ porque o login da API limita as tentativas por identidade.
 
 ## Deploy
 
-O painel e implantado na Vercel, que constroi o projeto direto do repositorio. Defina
-`NEXT_PUBLIC_API_URL` nas variaveis de ambiente do projeto na Vercel. O valor e
-incorporado ao bundle durante o build, entao alterar a variavel exige um novo deploy.
+O painel e hospedado na Vercel, mas quem publica e o GitHub Actions: o job `deploy`
+so roda depois que lint, typecheck, build e os testes e2e passam. O deploy automatico
+da Vercel fica desligado por `vercel.json` (`git.deploymentEnabled: false`), entao um
+push nunca vai ao ar sem CI verde.
+
+Push no `main` publica em producao; pull request gera um preview isolado. A URL de
+cada deploy aparece no resumo da execucao no GitHub.
+
+O workflow precisa de tres secrets no repositorio: `VERCEL_TOKEN`, `VERCEL_ORG_ID` e
+`VERCEL_PROJECT_ID`.
+
+Defina `NEXT_PUBLIC_API_URL` nas variaveis de ambiente do projeto na Vercel — o
+`vercel pull` as traz para o build. O valor e incorporado ao bundle durante o build,
+entao alterar a variavel exige um novo deploy.
 
 ## Docker
 
