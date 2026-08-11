@@ -1,6 +1,6 @@
 import { api, uploadToSignedURL } from '@/shared/infrastructure/http/api-client';
 import { createRestCollection, type JsonRecord } from '@/shared/infrastructure/http/rest-collection';
-import type { Admin, Cliente, Destino, HorarioTurno, Motorista, Municipio, Parada, RotaInterna, Veiculo, Vinculo } from '@/features/registrations/domain/models';
+import type { Admin, Cliente, Destino, HorarioTurno, Motorista, Municipio, Parada, RotaInterna, Veiculo, Vinculo, VinculoComCliente } from '@/features/registrations/domain/models';
 
 export const admins = createRestCollection<Admin>('/admin');
 export const destinos = {
@@ -32,7 +32,9 @@ export const rotasInternas = {
 };
 
 export const vinculos = {
-  list: (clienteId: number) => api<Vinculo[]>(`/clientes/${clienteId}/vinculos/`),
+  /** Listagem administrativa de todos os vínculos, com o nome do cliente já resolvido. */
+  list: () => api<VinculoComCliente[]>('/vinculos/'),
+  listByCliente: (clienteId: number) => api<Vinculo[]>(`/clientes/${clienteId}/vinculos/`),
   get: (clienteId: number, id: number) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`),
   create: (clienteId: number, payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/`, { method: 'POST', body: payload }),
   update: (clienteId: number, id: number, payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`, { method: 'PUT', body: payload }),

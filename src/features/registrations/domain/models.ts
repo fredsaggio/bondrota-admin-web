@@ -31,6 +31,9 @@ export interface Vinculo {
   rota_interna_id: number; curso: string; comprovante: string; validade: string; horarios_fixos: HorarioFixo[];
 }
 
+/** Item de `GET /vinculos/`, a listagem administrativa que já resolve o nome do cliente. */
+export interface VinculoComCliente extends Vinculo { cliente_nome: string }
+
 export interface Cliente {
   id: number; nome: string; cpf: string; telefone: string; data_nasc: string; foto: string; vinculos?: Vinculo[];
 }

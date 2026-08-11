@@ -112,9 +112,9 @@ Se uma mudança exigir alterar frontend e backend, mantenha os contratos sincron
 
 ## Deploy
 
-- `next.config.ts` usa `output: 'standalone'`.
-- O `Dockerfile` é multi-stage, executa como usuário sem privilégios e possui healthcheck.
-- `NEXT_PUBLIC_API_URL` é definido no build da imagem, não apenas no runtime.
+- O deploy oficial é na Vercel, que constrói o projeto a partir do repositório. Não use `output: 'standalone'`: a Vercel cuida do empacotamento e essa opção quebra o deploy.
+- O `Dockerfile` existe apenas para execução self-hosted. Ele é multi-stage, usa o `next start` padrão, executa como usuário sem privilégios e possui healthcheck.
+- `NEXT_PUBLIC_API_URL` é definido no build, não apenas no runtime. Na Vercel, configure-o nas variáveis de ambiente do projeto; no Docker, passe-o como `--build-arg`.
 
 ```bash
 docker build --build-arg NEXT_PUBLIC_API_URL=https://api.exemplo.com/api/v1 -t bondrota-admin-web .

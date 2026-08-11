@@ -14,9 +14,15 @@ A aplicacao usa `NEXT_PUBLIC_API_URL` como URL base da API. O valor deve incluir
 
 A autenticação administrativa usa cookie HttpOnly. A API deve incluir a origem exata do painel em `ALLOWED_ORIGINS`, habilitar credenciais CORS e usar HTTPS em produção.
 
+## Deploy
+
+O painel e implantado na Vercel, que constroi o projeto direto do repositorio. Defina
+`NEXT_PUBLIC_API_URL` nas variaveis de ambiente do projeto na Vercel. O valor e
+incorporado ao bundle durante o build, entao alterar a variavel exige um novo deploy.
+
 ## Docker
 
-O valor de `NEXT_PUBLIC_API_URL` é incorporado ao bundle durante o build:
+O `Dockerfile` serve apenas para execucao self-hosted, fora da Vercel:
 
 ```bash
 docker build \
@@ -25,7 +31,8 @@ docker build \
 docker run --rm -p 3000:3000 bondrota-admin-web
 ```
 
-A imagem usa o modo standalone do Next.js, executa com usuário sem privilégios e possui healthcheck HTTP.
+A imagem usa o `next start` padrao com dependencias de producao, executa com usuario
+sem privilegios e possui healthcheck HTTP.
 
 ## Arquitetura
 

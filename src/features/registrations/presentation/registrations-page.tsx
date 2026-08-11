@@ -34,6 +34,7 @@ export function RegistrationsPage() {
   const [deleting, setDeleting] = useState<RegistryRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [notice, setNotice] = useState('');
   const definition = entities.find((item) => item.key === active)!;
 
@@ -70,14 +71,17 @@ export function RegistrationsPage() {
   async function remove() {
     if (!deleting) return;
     setBusy(true);
+    setDeleteError('');
     try {
       await removeRegistryRecord(active, deleting);
       setDeleting(null);
       setNotice('Registro removido com sucesso.');
       await resource.reload();
     } catch (reason) {
+      // O diálogo continua aberto para exibir o motivo. Uma exclusão recusada por
+      // uso do registro (409) é o caso mais comum e precisa ficar visível.
       setNotice('');
-      setFormError(reason instanceof Error ? reason.message : 'Não foi possível remover.');
+      setDeleteError(reason instanceof Error ? reason.message : 'Não foi possível remover.');
     } finally {
       setBusy(false);
     }
@@ -94,7 +98,6 @@ export function RegistrationsPage() {
       </div>
 
       {notice && <Notice type="success">{notice}</Notice>}
-      {formError && editing === undefined && <Notice type="error">{formError}</Notice>}
 
       <section className="panel overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-[#e4e9ef] p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -103,13 +106,13 @@ export function RegistrationsPage() {
         </div>
         {resource.loading ? <LoadingRows /> : resource.error ? <ErrorState message={resource.error} retry={resource.reload} /> : filtered.length === 0 ? <EmptyState /> : (
           <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th>{definition.columns.map((column) => <th key={column.key}>{column.label}</th>)}<th className="w-24">Ações</th></tr></thead><tbody>
-            {filtered.map((record) => <tr key={record.id}><td className="font-semibold">{record.id}</td>{definition.columns.map((column) => <td key={column.key}>{renderCell(column.key, record[column.key])}</td>)}<td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8" onClick={() => { setEditing(record); setFormError(''); }} title="Editar"><Edit3 size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" onClick={() => setDeleting(record)} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}
+            {filtered.map((record) => <tr key={record.id}><td className="font-semibold">{record.id}</td>{definition.columns.map((column) => <td key={column.key}>{renderCell(column.key, record[column.key])}</td>)}<td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8" onClick={() => { setEditing(record); setFormError(''); }} title="Editar"><Edit3 size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" onClick={() => { setDeleting(record); setDeleteError(''); }} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}
           </tbody></table></div>
         )}
       </section>
 
       {editing !== undefined && resource.data && <Modal title={editing ? `Editar ${definition.singular}` : `Novo ${definition.singular}`} description="Os campos marcados com * são obrigatórios." onClose={() => setEditing(undefined)} wide={active === 'rotas'}><RegistryForm entity={active} record={editing} references={resource.data.references} busy={busy} error={formError} onSubmit={save} onCancel={() => setEditing(undefined)} /></Modal>}
-      {deleting && <ConfirmDialog title={`Excluir ${definition.singular}`} message="Esta ação é permanente e pode ser recusada caso o registro esteja sendo usado por outra entidade." busy={busy} onClose={() => setDeleting(null)} onConfirm={() => void remove()} />}
+      {deleting && <ConfirmDialog title={`Excluir ${definition.singular}`} message="Esta ação é permanente e pode ser recusada caso o registro esteja sendo usado por outra entidade." busy={busy} error={deleteError} onClose={() => { setDeleting(null); setDeleteError(''); }} onConfirm={() => void remove()} />}
     </div>
   );
 }

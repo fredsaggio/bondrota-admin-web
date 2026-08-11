@@ -62,14 +62,16 @@ export function Modal({ title, description, children, onClose, wide = false }: {
   );
 }
 
-export function ConfirmDialog({ title, message, busy, onConfirm, onClose }: { title: string; message: string; busy?: boolean; onConfirm(): void; onClose(): void }) {
+export function ConfirmDialog({ title, message, busy, error, onConfirm, onClose }: { title: string; message: string; busy?: boolean; error?: string; onConfirm(): void; onClose(): void }) {
   return (
     <Modal title={title} onClose={onClose}>
       <div className="p-5">
         <p className="text-sm leading-6 text-slate-600">{message}</p>
+        {/* A falha precisa aparecer aqui dentro: o overlay do modal cobre a página. */}
+        {error && <div className="mt-4"><Notice type="error">{error}</Notice></div>}
         <div className="mt-5 flex justify-end gap-2">
-          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-danger" disabled={busy} onClick={onConfirm}>{busy ? 'Removendo...' : 'Confirmar exclusão'}</button>
+          <button className="btn btn-secondary" onClick={onClose}>{error ? 'Fechar' : 'Cancelar'}</button>
+          <button className="btn btn-danger" disabled={busy} onClick={onConfirm}>{busy ? 'Removendo...' : error ? 'Tentar novamente' : 'Confirmar exclusão'}</button>
         </div>
       </div>
     </Modal>

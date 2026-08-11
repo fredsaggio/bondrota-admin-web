@@ -1,10 +1,35 @@
 import { admins, clientes, destinos, horarios, motoristas, paradas, rotasInternas, veiculos, vinculos } from '@/features/registrations/infrastructure/registrations-api';
-import type { EntityKey, RegistryPageData, RegistryRecord } from '@/features/registrations/domain/registry';
+import type { EntityKey, RegistryPageData, RegistryReferences, RegistryRecord } from '@/features/registrations/domain/registry';
+
+/**
+ * Referências que o formulário de cada entidade consome. Só as listadas aqui são
+ * buscadas, para que abas sem nenhum select dependente não paguem por elas.
+ */
+const requiredReferences: Record<EntityKey, ReadonlyArray<keyof RegistryReferences>> = {
+  destinos: [],
+  paradas: [],
+  rotas: ['paradas'],
+  horarios: [],
+  veiculos: [],
+  motoristas: [],
+  clientes: [],
+  vinculos: ['clientes', 'destinos', 'rotas'],
+  admins: [],
+};
 
 export async function loadRegistry(entity: EntityKey): Promise<RegistryPageData> {
-  const [stopItems, destinationItems, routeItems, clientItems, records] = await Promise.all([
-    paradas.list(), destinos.list(), rotasInternas.list(), clientes.list(), loadEntity(entity),
+  const needed = requiredReferences[entity];
+  const reference = <T>(key: keyof RegistryReferences, load: () => Promise<T[]>): Promise<T[]> =>
+    needed.includes(key) ? load() : Promise.resolve([]);
+
+  const [records, stopItems, destinationItems, routeItems, clientItems] = await Promise.all([
+    loadEntity(entity),
+    reference('paradas', paradas.list),
+    reference('destinos', destinos.list),
+    reference('rotas', rotasInternas.list),
+    reference('clientes', clientes.list),
   ]);
+
   return { records, references: { paradas: stopItems, destinos: destinationItems, rotas: routeItems, clientes: clientItems } };
 }
 
@@ -18,11 +43,7 @@ async function loadEntity(entity: EntityKey): Promise<RegistryRecord[]> {
     case 'motoristas': return (await motoristas.list()).map((item) => ({ ...item }));
     case 'clientes': return (await clientes.list()).map((item) => ({ ...item }));
     case 'admins': return (await admins.list()).map((item) => ({ ...item }));
-    case 'vinculos': {
-      const clientItems = await clientes.list();
-      const groups = await Promise.all(clientItems.map(async (client) => (await vinculos.list(client.id)).map((item) => ({ ...item, cliente_nome: client.nome }))));
-      return groups.flat();
-    }
+    case 'vinculos': return (await vinculos.list()).map((item) => ({ ...item }));
   }
 }
 
