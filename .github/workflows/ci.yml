@@ -106,51 +106,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      # A Vercel responde "Could not retrieve Project Settings" tanto para secret
-      # ausente quanto para token sem acesso ao time. Checar antes separa os dois.
-      - name: Check required secrets
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          missing=""
-          [ -n "$VERCEL_TOKEN" ] || missing="$missing VERCEL_TOKEN"
-          [ -n "$VERCEL_ORG_ID" ] || missing="$missing VERCEL_ORG_ID"
-          [ -n "$VERCEL_PROJECT_ID" ] || missing="$missing VERCEL_PROJECT_ID"
-          if [ -n "$missing" ]; then
-            echo "::error::Secrets ausentes ou vazios:$missing"
-            echo "Configure em Settings > Secrets and variables > Actions > Repository secrets."
-            exit 1
-          fi
-          echo "Os tres secrets estao presentes."
-          echo "ORG_ID começa com: $(printf '%.5s' "$VERCEL_ORG_ID")..."
-
-      # Fala direto com a API da Vercel para separar "token sem acesso" (403) de
-      # "IDs errados" (404) do erro generico que o `vercel pull` reporta. So o
-      # status HTTP e impresso; o GitHub ja mascara o secret em qualquer log.
-      - name: Diagnose Vercel API access
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          status=$(curl -s -o /tmp/vercel-diag.json -w '%{http_code}' \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID")
-          echo "HTTP status: $status"
-          case "$status" in
-            200) echo "Token tem acesso ao projeto. O problema esta em outro lugar." ;;
-            401) echo "::error::Token invalido ou expirado." ;;
-            403) echo "::error::Token valido mas sem acesso a este time/projeto. Verifique o Scope escolhido ao criar o token." ;;
-            404) echo "::error::VERCEL_PROJECT_ID ou VERCEL_ORG_ID nao correspondem a um projeto existente para este token." ;;
-            *) echo "::warning::Status inesperado, veja o corpo da resposta abaixo." ;;
-          esac
-          cat /tmp/vercel-diag.json
-
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
-      # --debug temporario: o "Could not retrieve Project Settings" da Vercel
-      # esconde a causa real (costuma ser um 403 em uma chamada especifica).
-      # https://github.com/vercel/vercel/issues/10874
+
+      # Traz as variaveis do projeto na Vercel (inclusive NEXT_PUBLIC_API_URL,
+      # que e embutida no bundle em build time).
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=$TARGET_ENV --token=${{ secrets.VERCEL_TOKEN }} --debug
+        run: vercel pull --yes --environment=$TARGET_ENV --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build
         run: vercel build ${{ env.TARGET_ENV == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
