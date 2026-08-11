@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "a11y-maxxing": {
+      "source": "LukeberryPi/skills",
+      "sourceType": "github",
+      "skillPath": "skills/a11y-maxxing/SKILL.md",
+      "computedHash": "adc474a9cc9ba5bdaa32828db19d82b151c8a26f0ee79969652ba26f3bdf7ea2"
+    },
+    "prune-dead-code": {
+      "source": "LukeberryPi/skills",
+      "sourceType": "github",
+      "skillPath": "skills/prune-dead-code/SKILL.md",
+      "computedHash": "4a9b0dcdb219076aff0e3ae7eeb33cf9ea9dae265b70e45637dcd962dc0b6e3d"
+    },
+    "remove-dumb-comments": {
+      "source": "LukeberryPi/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remove-dumb-comments/SKILL.md",
+      "computedHash": "c6a8fe806448e0e5b88819bc32cb608114e6edd45e5b6736176a84a97bafef48"
+    }
+  }
+}
