@@ -146,8 +146,11 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
+      # --debug temporario: o "Could not retrieve Project Settings" da Vercel
+      # esconde a causa real (costuma ser um 403 em uma chamada especifica).
+      # https://github.com/vercel/vercel/issues/10874
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=$TARGET_ENV --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=$TARGET_ENV --token=${{ secrets.VERCEL_TOKEN }} --debug
 
       - name: Build
         run: vercel build ${{ env.TARGET_ENV == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
