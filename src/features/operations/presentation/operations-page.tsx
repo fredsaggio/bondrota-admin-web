@@ -22,10 +22,32 @@ export function OperationsPage() {
   const resource = useResource<OperationsData>(loader);
 
   const filtered = useMemo(() => {
-    if (!resource.data) return [];
-    const source = tab === 'reservas' ? resource.data.bookings : tab === 'viagens' ? resource.data.trips : resource.data.failures;
+    const data = resource.data;
+    if (!data) return [];
     const query = search.trim().toLowerCase();
-    return query ? source.filter((item) => JSON.stringify(item).toLowerCase().includes(query)) : source;
+
+    // Busca só nos campos realmente exibidos em cada tabela. JSON.stringify do
+    // item inteiro batia com ids internos e nomes de campo, não só com o que a
+    // tela mostra.
+    if (tab === 'reservas') {
+      if (!query) return data.bookings;
+      return data.bookings.filter((item) => [
+        String(item.id), data.clientNames.get(item.cliente_id) ?? '', item.data_viagem, item.turno, item.sentido,
+        data.destinationNames.get(item.destino_id) ?? '', item.status,
+      ].join(' ').toLowerCase().includes(query));
+    }
+    if (tab === 'viagens') {
+      if (!query) return data.trips;
+      return data.trips.filter(({ viagem, ciclo }) => [
+        String(viagem.id), ciclo.data_viagem, ciclo.turno, String(ciclo.municipio_destino_id), viagem.sentido,
+        String(ciclo.veiculo_id), viagem.status,
+      ].join(' ').toLowerCase().includes(query));
+    }
+    if (!query) return data.failures;
+    return data.failures.filter((item) => [
+      String(item.id), item.data_viagem, String(item.municipio_destino_id), item.turno, item.sentido,
+      String(item.tentativas), item.ultimo_erro ?? '', item.proxima_tentativa_em ?? '',
+    ].join(' ').toLowerCase().includes(query));
   }, [resource.data, search, tab]);
 
   async function action(run: () => Promise<unknown>, success: string) {
@@ -91,7 +113,7 @@ function TripDetails({ viagemId, onClose }: { viagemId: number; onClose(): void 
     catch (reason) { setMessage(reason instanceof Error ? reason.message : 'Falha ao registrar presença.'); }
   }
 
-  return <Modal title={`Viagem #${viagemId}`} description="Horários, passageiros e rota calculada" onClose={onClose} wide><div className="p-5">{resource.loading ? <LoadingRows /> : resource.error || !resource.data ? <ErrorState message={resource.error} retry={resource.reload} /> : <div className="space-y-5">
+  return <Modal title={`Viagem #${viagemId}`} description="Horários, passageiros e rota calculada" onClose={onClose} wide><div className="p-5">{resource.loading ? <LoadingRows /> : !resource.data ? <ErrorState message={resource.error || 'Não foi possível carregar os dados da viagem.'} retry={resource.reload} /> : <div className="space-y-5">
     {message && <Notice type={message.includes('Falha') || message.includes('Não') ? 'error' : 'success'}>{message}</Notice>}
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><Info label="Data" value={date(resource.data.trip.ciclo.data_viagem)} /><Info label="Turno" value={resource.data.trip.ciclo.turno} /><Info label="Sentido" value={resource.data.trip.viagem.sentido} /><Info label="Status" value={resource.data.trip.viagem.status} /></div>
     <section><h3 className="mb-2 text-xs font-bold uppercase text-slate-500">Horários</h3><div className="flex flex-wrap gap-2">{resource.data.schedules.map((item: ViagemHorario) => <span className="badge badge-blue" key={item.id}>{item.tipo.replaceAll('_', ' ')} · {dateTime(item.horario)}</span>)}</div></section>

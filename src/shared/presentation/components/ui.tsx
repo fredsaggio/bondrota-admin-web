@@ -1,7 +1,9 @@
 'use client';
 
 import { AlertCircle, Inbox, Search, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+
+const focusableSelector = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
   return (
@@ -48,10 +50,44 @@ export function ErrorState({ message, retry }: { message: string; retry?(): void
 }
 
 export function Modal({ title, description, children, onClose, wide = false }: { title: string; description?: string; children: ReactNode; onClose(): void; wide?: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    sectionRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Prende o Tab dentro do modal: sem isso, o foco escapa pro conteudo
+      // por baixo do overlay assim que passa do ultimo elemento focavel.
+      if (event.key !== 'Tab' || !sectionRef.current) return;
+      const focusable = sectionRef.current.querySelectorAll<HTMLElement>(focusableSelector);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6">
       <button className="absolute inset-0 bg-slate-950/50" aria-label="Fechar" onClick={onClose} />
-      <section className={`panel relative flex max-h-[92vh] w-full flex-col overflow-hidden ${wide ? 'max-w-3xl' : 'max-w-xl'}`} role="dialog" aria-modal="true">
+      <section ref={sectionRef} tabIndex={-1} className={`panel relative flex max-h-[92vh] w-full flex-col overflow-hidden outline-none ${wide ? 'max-w-3xl' : 'max-w-xl'}`} role="dialog" aria-modal="true">
         <header className="flex items-start justify-between gap-4 border-b border-[#e4e9ef] px-5 py-4">
           <div><h2 className="text-base font-bold">{title}</h2>{description && <p className="mt-1 text-xs text-slate-500">{description}</p>}</div>
           <button className="icon-btn shrink-0" onClick={onClose} aria-label="Fechar"><X size={17} /></button>

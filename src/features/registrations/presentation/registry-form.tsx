@@ -28,12 +28,12 @@ const value = (record: RegistryRecord | null, key: string) => {
 export function RegistryForm({ entity, record, references, busy, error, onSubmit, onCancel }: Props) {
   const [routeStops, setRouteStops] = useState<number[]>(() => routeStopIds(record));
   const [photo, setPhoto] = useState(value(record, 'foto'));
-  const [document, setDocument] = useState(value(record, 'comprovante'));
+  const [comprovante, setComprovante] = useState(value(record, 'comprovante'));
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const payload = buildPayload(entity, data, record, routeStops, photo, document);
+    const payload = buildPayload(entity, data, record, routeStops, photo, comprovante);
     await onSubmit(payload);
   }
 
@@ -101,7 +101,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <Field label="Curso" name="curso" defaultValue={value(record, 'curso')} required />
           <Field label="Validade" name="validade" type="date" defaultValue={value(record, 'validade')} required />
           <Weekdays defaultValues={(record?.horarios_fixos as Array<{ dia_semana: number }> | undefined)?.map((item) => item.dia_semana) ?? []} />
-          <UploadField label="Comprovante" bucket="documentos" folder="comprovantes" accept="application/pdf,image/*" current={document} onUploaded={setDocument} />
+          <UploadField label="Comprovante" bucket="documentos" folder="comprovantes" accept="application/pdf,image/*" current={comprovante} onUploaded={setComprovante} />
         </>}
 
         {entity === 'admins' && <>
@@ -119,7 +119,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
   );
 }
 
-function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord | null, routeStops: number[], photo: string, document: string): Record<string, unknown> {
+function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord | null, routeStops: number[], photo: string, comprovante: string): Record<string, unknown> {
   const text = (name: string) => String(data.get(name) ?? '').trim();
   const number = (name: string) => Number(data.get(name));
   switch (entity) {
@@ -134,7 +134,7 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
     }
     case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: text('cpf'), senha: text('senha') }), telefone: text('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: photo };
     case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: text('cpf'), senha: text('senha') }), telefone: text('telefone'), data_nasc: text('data_nasc'), foto: photo };
-    case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante: document };
+    case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante };
     case 'admins': return { email: text('email'), ...(record ? {} : { senha: text('senha') }) };
   }
 }

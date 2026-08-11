@@ -12,20 +12,26 @@ interface EntityDefinition {
   key: EntityKey;
   label: string;
   singular: string;
+  /** Gênero gramatical de `singular`, usado para concordar "Novo"/"Nova". */
+  genero: 'm' | 'f';
   columns: Array<{ key: string; label: string }>;
 }
 
 const entities: EntityDefinition[] = [
-  { key: 'destinos', label: 'Destinos', singular: 'destino', columns: [{ key: 'nome', label: 'Nome' }, { key: 'rua', label: 'Endereço' }, { key: 'municipio_id', label: 'Município IBGE' }] },
-  { key: 'paradas', label: 'Paradas', singular: 'parada', columns: [{ key: 'nome', label: 'Nome' }, { key: 'latitude', label: 'Latitude' }, { key: 'longitude', label: 'Longitude' }] },
-  { key: 'rotas', label: 'Rotas internas', singular: 'rota interna', columns: [{ key: 'id', label: 'Rota' }, { key: 'paradas_resumo', label: 'Sequência de paradas' }] },
-  { key: 'horarios', label: 'Horários', singular: 'horário', columns: [{ key: 'municipio_destino_id', label: 'Município IBGE' }, { key: 'turno', label: 'Turno' }, { key: 'horario_ida', label: 'Ida' }, { key: 'horario_volta', label: 'Volta' }] },
-  { key: 'veiculos', label: 'Veículos', singular: 'veículo', columns: [{ key: 'placa', label: 'Placa' }, { key: 'modelo', label: 'Modelo' }, { key: 'categoria_label', label: 'Categoria' }, { key: 'capacidade', label: 'Capacidade' }, { key: 'status', label: 'Status' }] },
-  { key: 'motoristas', label: 'Motoristas', singular: 'motorista', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'turno', label: 'Turno' }, { key: 'municipio_trabalho_id', label: 'Cidade de trabalho' }] },
-  { key: 'clientes', label: 'Clientes', singular: 'cliente', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'telefone', label: 'Telefone' }, { key: 'data_nasc', label: 'Nascimento' }] },
-  { key: 'vinculos', label: 'Vínculos', singular: 'vínculo', columns: [{ key: 'cliente_nome', label: 'Cliente' }, { key: 'tipo', label: 'Tipo' }, { key: 'turno', label: 'Turno' }, { key: 'destino_id', label: 'Destino' }, { key: 'validade', label: 'Validade' }] },
-  { key: 'admins', label: 'Administradores', singular: 'administrador', columns: [{ key: 'email', label: 'E-mail' }] },
+  { key: 'destinos', label: 'Destinos', singular: 'destino', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'rua', label: 'Endereço' }, { key: 'municipio_id', label: 'Município IBGE' }] },
+  { key: 'paradas', label: 'Paradas', singular: 'parada', genero: 'f', columns: [{ key: 'nome', label: 'Nome' }, { key: 'latitude', label: 'Latitude' }, { key: 'longitude', label: 'Longitude' }] },
+  { key: 'rotas', label: 'Rotas internas', singular: 'rota interna', genero: 'f', columns: [{ key: 'id', label: 'Rota' }, { key: 'paradas_resumo', label: 'Sequência de paradas' }] },
+  { key: 'horarios', label: 'Horários', singular: 'horário', genero: 'm', columns: [{ key: 'municipio_destino_id', label: 'Município IBGE' }, { key: 'turno', label: 'Turno' }, { key: 'horario_ida', label: 'Ida' }, { key: 'horario_volta', label: 'Volta' }] },
+  { key: 'veiculos', label: 'Veículos', singular: 'veículo', genero: 'm', columns: [{ key: 'placa', label: 'Placa' }, { key: 'modelo', label: 'Modelo' }, { key: 'categoria_label', label: 'Categoria' }, { key: 'capacidade', label: 'Capacidade' }, { key: 'status', label: 'Status' }] },
+  { key: 'motoristas', label: 'Motoristas', singular: 'motorista', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'turno', label: 'Turno' }, { key: 'municipio_trabalho_id', label: 'Cidade de trabalho' }] },
+  { key: 'clientes', label: 'Clientes', singular: 'cliente', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'telefone', label: 'Telefone' }, { key: 'data_nasc', label: 'Nascimento' }] },
+  { key: 'vinculos', label: 'Vínculos', singular: 'vínculo', genero: 'm', columns: [{ key: 'cliente_nome', label: 'Cliente' }, { key: 'tipo', label: 'Tipo' }, { key: 'turno', label: 'Turno' }, { key: 'destino_id', label: 'Destino' }, { key: 'validade', label: 'Validade' }] },
+  { key: 'admins', label: 'Administradores', singular: 'administrador', genero: 'm', columns: [{ key: 'email', label: 'E-mail' }] },
 ];
+
+function newLabel(definition: EntityDefinition) {
+  return `${definition.genero === 'f' ? 'Nova' : 'Novo'} ${definition.singular}`;
+}
 
 export function RegistrationsPage() {
   const [active, setActive] = useState<EntityKey>('destinos');
@@ -42,10 +48,19 @@ export function RegistrationsPage() {
   const resource = useResource<RegistryPageData>(loader);
 
   const filtered = useMemo(() => {
+    const records = resource.data?.records ?? [];
     const query = search.trim().toLocaleLowerCase('pt-BR');
-    if (!query) return resource.data?.records ?? [];
-    return (resource.data?.records ?? []).filter((record) => JSON.stringify(record).toLocaleLowerCase('pt-BR').includes(query));
-  }, [resource.data, search]);
+    if (!query) return records;
+    // Busca só nas colunas realmente visíveis na tabela (+ o #id, sempre mostrado).
+    // JSON.stringify do registro inteiro batia até com nomes de campo internos.
+    return records.filter((record) => {
+      const haystack = [String(record.id), ...definition.columns.map((column) => {
+        const raw = record[column.key];
+        return raw == null ? '' : String(raw);
+      })].join(' ').toLocaleLowerCase('pt-BR');
+      return haystack.includes(query);
+    });
+  }, [resource.data, search, definition]);
 
   function changeEntity(key: EntityKey) {
     setActive(key);
@@ -59,7 +74,8 @@ export function RegistrationsPage() {
     try {
       await saveRegistryRecord(active, editing ?? null, payload);
       setEditing(undefined);
-      setNotice(`${definition.singular[0].toUpperCase()}${definition.singular.slice(1)} salvo com sucesso.`);
+      const salvo = definition.genero === 'f' ? 'salva' : 'salvo';
+      setNotice(`${definition.singular[0].toUpperCase()}${definition.singular.slice(1)} ${salvo} com sucesso.`);
       await resource.reload();
     } catch (reason) {
       setFormError(reason instanceof Error ? reason.message : 'Não foi possível salvar.');
@@ -89,7 +105,7 @@ export function RegistrationsPage() {
 
   return (
     <div className="space-y-5 p-4 sm:p-6 lg:p-7">
-      <PageHeader title="Cadastros" subtitle="Configure os recursos usados pelo planejamento e pela operação" action={<button className="btn btn-primary" onClick={() => { setEditing(null); setFormError(''); }}><Plus size={16} />Novo {definition.singular}</button>} />
+      <PageHeader title="Cadastros" subtitle="Configure os recursos usados pelo planejamento e pela operação" action={<button className="btn btn-primary" onClick={() => { setEditing(null); setFormError(''); }}><Plus size={16} />{newLabel(definition)}</button>} />
 
       <div className="panel overflow-x-auto p-1.5">
         <div className="flex min-w-max gap-1">
@@ -111,7 +127,7 @@ export function RegistrationsPage() {
         )}
       </section>
 
-      {editing !== undefined && resource.data && <Modal title={editing ? `Editar ${definition.singular}` : `Novo ${definition.singular}`} description="Os campos marcados com * são obrigatórios." onClose={() => setEditing(undefined)} wide={active === 'rotas'}><RegistryForm entity={active} record={editing} references={resource.data.references} busy={busy} error={formError} onSubmit={save} onCancel={() => setEditing(undefined)} /></Modal>}
+      {editing !== undefined && resource.data && <Modal title={editing ? `Editar ${definition.singular}` : newLabel(definition)} description="Os campos marcados com * são obrigatórios." onClose={() => setEditing(undefined)} wide={active === 'rotas'}><RegistryForm entity={active} record={editing} references={resource.data.references} busy={busy} error={formError} onSubmit={save} onCancel={() => setEditing(undefined)} /></Modal>}
       {deleting && <ConfirmDialog title={`Excluir ${definition.singular}`} message="Esta ação é permanente e pode ser recusada caso o registro esteja sendo usado por outra entidade." busy={busy} error={deleteError} onClose={() => { setDeleting(null); setDeleteError(''); }} onConfirm={() => void remove()} />}
     </div>
   );
