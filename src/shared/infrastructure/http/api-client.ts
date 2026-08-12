@@ -26,7 +26,7 @@ function friendlyMessage(status: number, raw: string) {
     'senha atual incorreta': 'A senha atual está incorreta.',
     'nome must contain only letters and spaces': 'O nome deve conter apenas letras e espaços.',
     'cpf must have 11 digits': 'O CPF deve ter 11 dígitos.',
-    'telefone must have 10 or 11 digits with a valid ddd': 'O telefone deve ter DDD e 8 ou 9 dígitos.',
+    'telefone must be a valid cellphone number: ddd + 9 digits starting with 9': 'O telefone deve ser um celular válido: DDD + 9 dígitos.',
   };
   const normalized = raw.trim().toLowerCase();
   if (known[normalized]) return known[normalized];

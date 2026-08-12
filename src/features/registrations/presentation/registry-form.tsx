@@ -42,18 +42,15 @@ function formatCPF(raw: string) {
   return out;
 }
 
-/** Formata telefone com DDD: fixo (00) 0000-0000 ou celular (00) 00000-0000.
- * O agrupamento após o DDD só decide entre 4 ou 5 dígitos quando o número já
- * tem 11 dígitos — até lá assume fixo, e o texto realinha se virar celular. */
+/** Formata celular com DDD: (00) 00000-0000. Só celular — fixo não é aceito. */
 function formatTelefone(raw: string) {
   const digits = onlyDigits(raw).slice(0, 11);
   if (!digits) return '';
   const ddd = digits.slice(0, 2);
   if (digits.length <= 2) return `(${ddd}`;
   const rest = digits.slice(2);
-  const splitAt = digits.length <= 10 ? 4 : 5;
-  const first = rest.slice(0, splitAt);
-  const second = rest.slice(splitAt);
+  const first = rest.slice(0, 5);
+  const second = rest.slice(5);
   return second ? `(${ddd}) ${first}-${second}` : `(${ddd}) ${first}`;
 }
 
