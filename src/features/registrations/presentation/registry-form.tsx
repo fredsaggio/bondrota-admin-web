@@ -115,8 +115,10 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
         </>}
 
         {entity === 'veiculos' && <>
-          {/* maxLength 8 conta o hífen que a máscara insere no padrão antigo. */}
-          <MaskedField label="Placa" name="placa" defaultValue={value(record, 'placa')} format={formatarPlaca} maxLength={8} inputMode="text" placeholder="ABC-1234 ou ABC1D23" required />
+          {/* maxLength 8 conta o hífen que a máscara insere no padrão antigo.
+              O placeholder mostra só letras/números — o hífen é decidido pela
+              máscara, o admin não digita nem escolhe qual formato usar. */}
+          <MaskedField label="Placa" name="placa" defaultValue={value(record, 'placa')} format={formatarPlaca} maxLength={8} inputMode="text" placeholder="ABC1234" required />
           <Field label="Modelo" name="modelo" defaultValue={value(record, 'modelo')} required />
           <Select label="Categoria" name="categoria" defaultValue={value(record, 'categoria')} options={[["executivo", "Executivo - 46 lugares"], ["escolar", "Escolar - 24 lugares"], ["carro_7_lugares", "Carro - 7 lugares"]]} required />
           <Select label="Status" name="status" defaultValue={value(record, 'status') || 'ativo'} options={[["ativo", "Ativo"], ["inativo", "Inativo"], ["manutencao", "Manutenção"]]} required />
