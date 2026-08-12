@@ -27,6 +27,7 @@ function friendlyMessage(status: number, raw: string) {
     'nome must contain only letters and spaces': 'O nome deve conter apenas letras e espaços.',
     'cpf must have 11 digits': 'O CPF deve ter 11 dígitos.',
     'telefone must be a valid cellphone number: ddd + 9 digits starting with 9': 'O telefone deve ser um celular válido: DDD + 9 dígitos.',
+    'placa must have 7 characters: lllnnnn (old) or lllnlnn (mercosul)': 'A placa deve seguir um dos padrões: ABC-1234 ou ABC1D23.',
   };
   const normalized = raw.trim().toLowerCase();
   if (known[normalized]) return known[normalized];

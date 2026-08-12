@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent, type MouseEvent } from 'react';
 import { ArrowDown, ArrowUp, Eye, FileUp, Plus, Trash2 } from 'lucide-react';
 import { clientes, municipios, storage } from '@/features/registrations/infrastructure/registrations-api';
+import { formatarPlaca, limparPlaca } from '@/features/registrations/domain/placa';
 import { LocationPicker } from '@/features/registrations/presentation/location-picker';
 import { AsyncCombobox } from '@/shared/presentation/components/async-combobox';
 import type { Municipio, Parada } from '@/features/registrations/domain/models';
@@ -114,7 +115,8 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
         </>}
 
         {entity === 'veiculos' && <>
-          <Field label="Placa" name="placa" defaultValue={value(record, 'placa')} required />
+          {/* maxLength 8 conta o hífen que a máscara insere no padrão antigo. */}
+          <MaskedField label="Placa" name="placa" defaultValue={value(record, 'placa')} format={formatarPlaca} maxLength={8} inputMode="text" placeholder="ABC-1234 ou ABC1D23" required />
           <Field label="Modelo" name="modelo" defaultValue={value(record, 'modelo')} required />
           <Select label="Categoria" name="categoria" defaultValue={value(record, 'categoria')} options={[["executivo", "Executivo - 46 lugares"], ["escolar", "Escolar - 24 lugares"], ["carro_7_lugares", "Carro - 7 lugares"]]} required />
           <Select label="Status" name="status" defaultValue={value(record, 'status') || 'ativo'} options={[["ativo", "Ativo"], ["inativo", "Inativo"], ["manutencao", "Manutenção"]]} required />
@@ -185,7 +187,9 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
     case 'veiculos': {
       const categoria = text('categoria');
       const capacidade = categoria === 'executivo' ? 46 : categoria === 'escolar' ? 24 : 7;
-      return { placa: text('placa').toUpperCase(), modelo: text('modelo'), categoria, capacidade, status: text('status'), ar_condicionado: data.has('ar_condicionado'), banheiro: data.has('banheiro'), persiana: data.has('persiana'), luz_leitura: data.has('luz_leitura'), tomada: data.has('tomada') };
+      // A placa vai limpa: o hífen é só da máscara, e guardar as duas formas
+      // furaria o UNIQUE da coluna com o mesmo carro duas vezes.
+      return { placa: limparPlaca(text('placa')), modelo: text('modelo'), categoria, capacidade, status: text('status'), ar_condicionado: data.has('ar_condicionado'), banheiro: data.has('banheiro'), persiana: data.has('persiana'), luz_leitura: data.has('luz_leitura'), tomada: data.has('tomada') };
     }
     case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: photo };
     case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), foto: photo };
@@ -225,7 +229,7 @@ function PersonNameField({ label, name, defaultValue, required, span }: { label:
 
 /** CPF e telefone: mostra a máscara pro admin, mas quem envia pro backend
  * (buildPayload) limpa a pontuação — lá o campo é guardado só com dígitos. */
-function MaskedField({ label, name, defaultValue, required, format, placeholder, maxLength }: { label: string; name: string; defaultValue?: string; required?: boolean; format(raw: string): string; placeholder?: string; maxLength: number }) {
+function MaskedField({ label, name, defaultValue, required, format, placeholder, maxLength, inputMode = 'numeric' }: { label: string; name: string; defaultValue?: string; required?: boolean; format(raw: string): string; placeholder?: string; maxLength: number; inputMode?: 'numeric' | 'text' }) {
   const [text, setText] = useState(() => format(defaultValue ?? ''));
   return (
     <label>
@@ -234,7 +238,7 @@ function MaskedField({ label, name, defaultValue, required, format, placeholder,
         className="field"
         name={name}
         type="text"
-        inputMode="numeric"
+        inputMode={inputMode}
         placeholder={placeholder}
         maxLength={maxLength}
         value={text}

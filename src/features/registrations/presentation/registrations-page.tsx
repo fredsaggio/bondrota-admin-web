@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Edit3, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog, EmptyState, ErrorState, LoadingRows, Modal, Notice, PageHeader, SearchField } from '@/shared/presentation/components/ui';
 import { RegistryForm } from '@/features/registrations/presentation/registry-form';
+import { exibirPlaca } from '@/features/registrations/domain/placa';
 import { useResource } from '@/shared/application/use-resource';
 import { useCursorList } from '@/shared/application/use-cursor-list';
 import { useDebouncedValue } from '@/shared/application/use-debounced-value';
@@ -164,6 +165,8 @@ function renderCell(key: string, raw: unknown) {
   if (key === 'capacidade') return `${value} lugares`;
   if (key === 'cpf') return formatCpf(value);
   if (key === 'telefone') return formatTelefone(value);
+  // Guardada limpa no banco; o hífen do padrão antigo entra só aqui.
+  if (key === 'placa') return exibirPlaca(value);
   return <span className="block max-w-[340px] truncate" title={value}>{value}</span>;
 }
 
