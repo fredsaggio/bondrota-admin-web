@@ -7,6 +7,18 @@ export interface Reserva {
   created_at: string; updated_at: string;
 }
 
+/** Item da listagem administrativa: a API já resolve os nomes via JOIN. */
+export interface ReservaComNomes extends Reserva {
+  cliente_nome: string;
+  destino_nome: string;
+}
+
+/** Contagens agregadas de `GET /reservas/resumo`, para o painel não somar linhas. */
+export interface ReservaResumo {
+  confirmadas_total: number;
+  confirmadas_por_turno: Partial<Record<TurnoOperacional, number>>;
+}
+
 export type StatusViagem = 'programada' | 'em_andamento' | 'concluida' | 'cancelada';
 export interface Viagem {
   id: number; ciclo_viagem_id: number; sentido: Sentido; status: StatusViagem; created_at: string; updated_at: string;

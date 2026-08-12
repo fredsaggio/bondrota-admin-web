@@ -18,6 +18,46 @@ export interface ApiMock {
   invalidateProtectedRoutes(): void;
   /** Volta a responder normalmente nas rotas protegidas. */
   restoreProtectedRoutes(): void;
+  /** Query strings recebidas em `GET /reservas/`, na ordem, para afirmar o que o front pediu. */
+  bookingRequests: string[];
+}
+
+export interface MockReserva {
+  id: number;
+  cliente_id: number;
+  cliente_nome: string;
+  vinculo_id: number;
+  data_viagem: string;
+  turno: string;
+  destino_id: number;
+  destino_nome: string;
+  rota_interna_id: number;
+  sentido: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Gera reservas com datas decrescentes, na mesma ordem que a API devolve. */
+export function makeReservas(total: number): MockReserva[] {
+  return Array.from({ length: total }, (_, index) => {
+    const day = String(28 - (index % 28)).padStart(2, '0');
+    return {
+      id: total - index,
+      cliente_id: 100 + index,
+      cliente_nome: `Cliente ${total - index}`,
+      vinculo_id: 200 + index,
+      data_viagem: `2026-09-${day}`,
+      turno: 'NT',
+      destino_id: 300 + index,
+      destino_nome: `Destino ${total - index}`,
+      rota_interna_id: 1,
+      sentido: 'ida',
+      status: 'confirmada',
+      created_at: '2026-08-01T12:00:00Z',
+      updated_at: '2026-08-01T12:00:00Z',
+    };
+  });
 }
 
 function json(route: Route, body: unknown, status = 200) {
@@ -42,15 +82,18 @@ function unauthorized(route: Route) {
  */
 export async function mockApi(
   page: Page,
-  options: { authenticated?: boolean } = {},
+  options: { authenticated?: boolean; reservas?: MockReserva[] } = {},
 ): Promise<ApiMock> {
   let authenticated = options.authenticated ?? false;
   let protectedRoutesFail = false;
+  const allBookings = options.reservas ?? [];
+  const bookingRequests: string[] = [];
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const method = request.method();
-    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
 
     if (method === 'OPTIONS') return route.fulfill({ status: 204 });
 
@@ -107,7 +150,44 @@ export async function mockApi(
     // Demais rotas exigem sessao, como no backend.
     if (!authenticated || protectedRoutesFail) return unauthorized(route);
 
-    // Toda listagem da API responde um array; vazio basta para o dashboard render.
+    // Contagens agregadas do painel — o dashboard le totais, nao linhas.
+    if (path === '/reservas/resumo') {
+      return json(route, { confirmadas_total: 0, confirmadas_por_turno: {} });
+    }
+
+    // Listagem paginada por cursor: aplica busca, intervalo de data e recorte,
+    // como o backend faz, para o teste exercitar o fluxo de verdade.
+    if (path === '/reservas/') {
+      bookingRequests.push(url.search);
+
+      const busca = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+      const dataInicio = url.searchParams.get('data_inicio');
+      const dataFim = url.searchParams.get('data_fim');
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+
+      const matching = allBookings.filter((item) => {
+        if (dataInicio && item.data_viagem < dataInicio) return false;
+        if (dataFim && item.data_viagem > dataFim) return false;
+        if (!busca) return true;
+        // A data fica fora da busca livre, igual ao backend.
+        return [item.cliente_nome, item.destino_nome, item.status, item.turno, item.sentido]
+          .join(' ').toLowerCase().includes(busca);
+      });
+
+      // O cursor e opaco para o front; aqui ele carrega so o deslocamento.
+      const offset = Number(atob(url.searchParams.get('cursor') ?? '') || 0);
+      const slice = matching.slice(offset, offset + limit);
+      const next = offset + slice.length;
+      const hasMore = next < matching.length;
+
+      return json(route, {
+        items: slice,
+        has_more: hasMore,
+        ...(hasMore ? { next_cursor: btoa(String(next)) } : {}),
+      });
+    }
+
+    // As demais listagens ainda respondem um array; vazio basta para renderizar.
     return json(route, []);
   });
 
@@ -118,5 +198,6 @@ export async function mockApi(
     restoreProtectedRoutes: () => {
       protectedRoutesFail = false;
     },
+    bookingRequests,
   };
 }

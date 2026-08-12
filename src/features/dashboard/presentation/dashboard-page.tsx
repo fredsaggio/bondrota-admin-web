@@ -30,7 +30,7 @@ export function DashboardPage() {
     const data = resource.data;
     if (!data) return null;
     const today = todayInTimeZone(data.timeZone);
-    const activeBookings = data.bookingItems.filter((item) => item.status === 'confirmada').length;
+    const activeBookings = data.bookingSummary.confirmadas_total;
     const todaysTrips = data.tripItems.filter((item) => item.ciclo.data_viagem === today);
     const activeFleet = data.vehicleItems.filter((item) => item.status === 'ativo').length;
     const statusData = Object.keys(statusLabels).map((status) => ({
@@ -38,10 +38,10 @@ export function DashboardPage() {
       status,
       value: data.tripItems.filter((item) => item.viagem.status === status).length,
     }));
-    const shifts = ['MT', 'VT', 'NT'].map((turno) => ({
+    const shifts = (['MT', 'VT', 'NT'] as const).map((turno) => ({
       turno,
       viagens: data.tripItems.filter((item) => item.ciclo.turno === turno).length,
-      reservas: data.bookingItems.filter((item) => item.turno === turno && item.status === 'confirmada').length,
+      reservas: data.bookingSummary.confirmadas_por_turno[turno] ?? 0,
     }));
     const upcoming = data.tripItems
       .filter((item) => ['programada', 'em_andamento'].includes(item.viagem.status))

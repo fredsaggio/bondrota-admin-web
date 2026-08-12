@@ -1,9 +1,31 @@
 import { api } from '@/shared/infrastructure/http/api-client';
 import type { JsonRecord } from '@/shared/infrastructure/http/rest-collection';
-import type { FalhaPlanejamento, Reserva, RotaDinamica, StatusPresenca, Viagem, ViagemComCiclo, ViagemHorario, ViagemLocalizacao, ViagemReserva } from '@/features/operations/domain/models';
+import type { CursorPage } from '@/shared/domain/pagination';
+import type { FalhaPlanejamento, Reserva, ReservaComNomes, ReservaResumo, RotaDinamica, StatusPresenca, Viagem, ViagemComCiclo, ViagemHorario, ViagemLocalizacao, ViagemReserva } from '@/features/operations/domain/models';
+
+export interface ReservaListParams {
+  cursor?: string;
+  limit?: number;
+  /** Busca por nome do cliente, nome do destino, status, turno ou sentido — não por data. */
+  q?: string;
+  dataInicio?: string;
+  dataFim?: string;
+}
+
+function reservaListQuery({ cursor, limit, q, dataInicio, dataFim }: ReservaListParams) {
+  const query = new URLSearchParams();
+  if (cursor) query.set('cursor', cursor);
+  if (limit) query.set('limit', String(limit));
+  if (q?.trim()) query.set('q', q.trim());
+  if (dataInicio) query.set('data_inicio', dataInicio);
+  if (dataFim) query.set('data_fim', dataFim);
+  const suffix = query.toString();
+  return suffix ? `?${suffix}` : '';
+}
 
 export const reservas = {
-  list: () => api<Reserva[]>('/reservas/'),
+  list: (params: ReservaListParams = {}) => api<CursorPage<ReservaComNomes>>(`/reservas/${reservaListQuery(params)}`),
+  summary: () => api<ReservaResumo>('/reservas/resumo'),
   listByCliente: (clienteId: number) => api<Reserva[]>(`/clientes/${clienteId}/reservas/`),
   listByVinculo: (clienteId: number, vinculoId: number) => api<Reserva[]>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/`),
   get: (id: number) => api<Reserva>(`/reservas/${id}`),

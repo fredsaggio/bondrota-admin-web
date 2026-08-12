@@ -5,19 +5,32 @@ import { Ban, Check, Eye, MapPinned, Play, RefreshCw, Trash2 } from 'lucide-reac
 import { ConfirmDialog, EmptyState, ErrorState, LoadingRows, Modal, Notice, PageHeader, SearchField } from '@/shared/presentation/components/ui';
 import { ApiError } from '@/shared/infrastructure/http/api-client';
 import { useResource } from '@/shared/application/use-resource';
+import { useCursorList } from '@/shared/application/use-cursor-list';
+import { useDebouncedValue } from '@/shared/application/use-debounced-value';
 import { loadOperations, type OperationsData } from '@/features/operations/application/load-operations';
 import { reservas, viagens } from '@/features/operations/infrastructure/operations-api';
-import type { FalhaPlanejamento, Reserva, RotaDinamica, StatusPresenca, ViagemComCiclo, ViagemHorario, ViagemReserva } from '@/features/operations/domain/models';
+import type { FalhaPlanejamento, ReservaComNomes, RotaDinamica, StatusPresenca, ViagemComCiclo, ViagemHorario, ViagemReserva } from '@/features/operations/domain/models';
 
 type Tab = 'reservas' | 'viagens' | 'falhas';
 
 export function OperationsPage() {
   const [tab, setTab] = useState<Tab>('reservas');
   const [search, setSearch] = useState('');
+  const [range, setRange] = useState({ inicio: '', fim: '' });
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'delete-booking' | 'cancel-trip'; id: number } | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A busca de reservas vai ao servidor, então espera o usuário parar de digitar.
+  // Viagens e falhas ainda filtram em memória, onde o termo cru responde na hora.
+  const debouncedSearch = useDebouncedValue(search);
+  const loadBookings = useCallback(
+    (cursor?: string) => reservas.list({ cursor, q: debouncedSearch, dataInicio: range.inicio, dataFim: range.fim }),
+    [debouncedSearch, range.inicio, range.fim],
+  );
+  const bookings = useCursorList<ReservaComNomes>(loadBookings);
+
   const loader = useCallback(() => loadOperations(), []);
   const resource = useResource<OperationsData>(loader);
 
@@ -29,13 +42,6 @@ export function OperationsPage() {
     // Busca só nos campos realmente exibidos em cada tabela. JSON.stringify do
     // item inteiro batia com ids internos e nomes de campo, não só com o que a
     // tela mostra.
-    if (tab === 'reservas') {
-      if (!query) return data.bookings;
-      return data.bookings.filter((item) => [
-        String(item.id), data.clientNames.get(item.cliente_id) ?? '', item.data_viagem, item.turno, item.sentido,
-        data.destinationNames.get(item.destino_id) ?? '', item.status,
-      ].join(' ').toLowerCase().includes(query));
-    }
     if (tab === 'viagens') {
       if (!query) return data.trips;
       return data.trips.filter(({ viagem, ciclo }) => [
@@ -50,25 +56,51 @@ export function OperationsPage() {
     ].join(' ').toLowerCase().includes(query));
   }, [resource.data, search, tab]);
 
+  const reloadCurrentTab = useCallback(
+    () => (tab === 'reservas' ? bookings.reload() : resource.reload()),
+    [bookings, resource, tab],
+  );
+
   async function action(run: () => Promise<unknown>, success: string) {
     setBusy(true); setNotice(null);
-    try { await run(); setNotice({ type: 'success', text: success }); await resource.reload(); }
+    try { await run(); setNotice({ type: 'success', text: success }); await reloadCurrentTab(); }
     catch (reason) { setNotice({ type: 'error', text: reason instanceof Error ? reason.message : 'A operação não pôde ser concluída.' }); }
     finally { setBusy(false); setConfirm(null); }
   }
 
   const labels = { reservas: 'Reservas', viagens: 'Viagens', falhas: 'Falhas do planejamento' };
+  const listLoading = tab === 'reservas' ? bookings.loading : resource.loading;
+  const listError = tab === 'reservas' ? bookings.error : resource.error;
+  const isEmpty = tab === 'reservas' ? bookings.items.length === 0 : filtered.length === 0;
+
   return (
     <div className="space-y-5 p-4 sm:p-6 lg:p-7">
       <PageHeader title="Operação" subtitle="Acompanhe reservas, viagens geradas e tentativas do planejamento" />
-      <div className="panel flex overflow-x-auto p-1.5">{(Object.keys(labels) as Tab[]).map((key) => <button key={key} onClick={() => { setTab(key); setSearch(''); }} className={`min-h-9 shrink-0 rounded-md px-4 text-xs font-semibold ${tab === key ? 'bg-[#426fa8] text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{labels[key]}</button>)}</div>
+      <div className="panel flex overflow-x-auto p-1.5">{(Object.keys(labels) as Tab[]).map((key) => <button key={key} onClick={() => { setTab(key); setSearch(''); setRange({ inicio: '', fim: '' }); }} className={`min-h-9 shrink-0 rounded-md px-4 text-xs font-semibold ${tab === key ? 'bg-[#426fa8] text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{labels[key]}</button>)}</div>
       {notice && <Notice type={notice.type}>{notice.text}</Notice>}
       <section className="panel overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-[#e4e9ef] p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-sm font-bold">{labels[tab]}</h2><p className="mt-1 text-xs text-slate-500">Atualização sob demanda a partir da API</p></div><div className="flex gap-2"><SearchField value={search} onChange={setSearch} /><button className="icon-btn shrink-0" onClick={() => void resource.reload()} title="Atualizar"><RefreshCw size={16} /></button></div></div>
-        {resource.loading ? <LoadingRows /> : resource.error ? <ErrorState message={resource.error} retry={resource.reload} /> : filtered.length === 0 ? <EmptyState /> : resource.data && (
-          tab === 'reservas' ? <BookingsTable items={filtered as Reserva[]} data={resource.data} busy={busy} onCancel={(id) => void action(() => reservas.cancel(id), 'Reserva cancelada.')} onDelete={(id) => setConfirm({ kind: 'delete-booking', id })} /> :
+        <div className="flex flex-col gap-3 border-b border-[#e4e9ef] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-bold">{labels[tab]}</h2>
+            <p className="mt-1 text-xs text-slate-500">{tab === 'reservas' ? `${bookings.items.length} carregada(s)${bookings.hasMore ? ' · há mais' : ''}` : 'Atualização sob demanda a partir da API'}</p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            {tab === 'reservas' && <DateRange value={range} onChange={setRange} />}
+            <SearchField value={search} onChange={setSearch} />
+            <button className="icon-btn shrink-0" onClick={() => void reloadCurrentTab()} title="Atualizar"><RefreshCw size={16} /></button>
+          </div>
+        </div>
+        {listLoading ? <LoadingRows /> : listError ? <ErrorState message={listError} retry={reloadCurrentTab} /> : isEmpty ? <EmptyState /> : (
+          tab === 'reservas' ? <BookingsTable items={bookings.items} busy={busy} onCancel={(id) => void action(() => reservas.cancel(id), 'Reserva cancelada.')} onDelete={(id) => setConfirm({ kind: 'delete-booking', id })} /> :
           tab === 'viagens' ? <TripsTable items={filtered as ViagemComCiclo[]} busy={busy} onDetail={setDetailId} onStart={(id) => void action(() => viagens.start(id), 'Viagem iniciada.')} onFinish={(id) => void action(() => viagens.finish(id), 'Viagem concluída.')} onCancel={(id) => setConfirm({ kind: 'cancel-trip', id })} /> :
           <FailuresTable items={filtered as FalhaPlanejamento[]} />
+        )}
+        {tab === 'reservas' && bookings.hasMore && !listLoading && (
+          <div className="border-t border-[#e4e9ef] p-4 text-center">
+            <button className="btn btn-secondary" disabled={bookings.loadingMore} onClick={() => void bookings.loadMore()}>
+              {bookings.loadingMore ? 'Carregando...' : 'Carregar mais'}
+            </button>
+          </div>
         )}
       </section>
 
@@ -78,8 +110,18 @@ export function OperationsPage() {
   );
 }
 
-function BookingsTable({ items, data, busy, onCancel, onDelete }: { items: Reserva[]; data: OperationsData; busy: boolean; onCancel(id: number): void; onDelete(id: number): void }) {
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Cliente</th><th>Data</th><th>Turno</th><th>Sentido</th><th>Destino</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td className="font-semibold">{item.id}</td><td>{data.clientNames.get(item.cliente_id) ?? `#${item.cliente_id}`}</td><td>{date(item.data_viagem)}</td><td><span className="badge badge-blue">{item.turno}</span></td><td className="capitalize">{item.sentido}</td><td>{data.destinationNames.get(item.destino_id) ?? `#${item.destino_id}`}</td><td><Badge status={item.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8 text-amber-600" disabled={busy || item.status === 'cancelada'} onClick={() => onCancel(item.id)} title="Cancelar"><Ban size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onDelete(item.id)} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}</tbody></table></div>;
+function DateRange({ value, onChange }: { value: { inicio: string; fim: string }; onChange(value: { inicio: string; fim: string }): void }) {
+  return (
+    <div className="flex items-end gap-2">
+      <label className="text-[10px] uppercase text-slate-400">De<input type="date" className="field !min-h-9 !py-1 text-xs" value={value.inicio} onChange={(event) => onChange({ ...value, inicio: event.target.value })} /></label>
+      <label className="text-[10px] uppercase text-slate-400">Até<input type="date" className="field !min-h-9 !py-1 text-xs" value={value.fim} onChange={(event) => onChange({ ...value, fim: event.target.value })} /></label>
+      {(value.inicio || value.fim) && <button className="btn btn-secondary !min-h-9 !py-1 text-xs" onClick={() => onChange({ inicio: '', fim: '' })}>Limpar</button>}
+    </div>
+  );
+}
+
+function BookingsTable({ items, busy, onCancel, onDelete }: { items: ReservaComNomes[]; busy: boolean; onCancel(id: number): void; onDelete(id: number): void }) {
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Cliente</th><th>Data</th><th>Turno</th><th>Sentido</th><th>Destino</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td className="font-semibold">{item.id}</td><td>{item.cliente_nome}</td><td>{date(item.data_viagem)}</td><td><span className="badge badge-blue">{item.turno}</span></td><td className="capitalize">{item.sentido}</td><td>{item.destino_nome}</td><td><Badge status={item.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8 text-amber-600" disabled={busy || item.status === 'cancelada'} onClick={() => onCancel(item.id)} title="Cancelar"><Ban size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onDelete(item.id)} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}</tbody></table></div>;
 }
 
 function TripsTable({ items, busy, onDetail, onStart, onFinish, onCancel }: { items: ViagemComCiclo[]; busy: boolean; onDetail(id: number): void; onStart(id: number): void; onFinish(id: number): void; onCancel(id: number): void }) {
