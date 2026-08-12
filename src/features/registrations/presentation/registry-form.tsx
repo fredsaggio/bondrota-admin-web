@@ -306,9 +306,9 @@ function UploadField({ label, bucket, folder, accept, current, onUploaded }: { l
     }
   };
   return (
-    <label className="sm:col-span-2">
+    <div className="sm:col-span-2">
       <span className="field-label">{label}</span>
-      <span className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4">
+      <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4">
         <FileUp size={19} className="text-[#426fa8]" />
         <span className="min-w-0 flex-1">
           <b className="block truncate text-xs text-slate-600">{busy ? 'Enviando...' : current || 'Selecionar arquivo'}</b>
@@ -320,8 +320,8 @@ function UploadField({ label, bucket, folder, accept, current, onUploaded }: { l
           </button>
         )}
         <input className="hidden" type="file" accept={accept} disabled={busy} onChange={(event) => void upload(event.target.files?.[0])} />
-      </span>
-    </label>
+      </label>
+    </div>
   );
 }
 
