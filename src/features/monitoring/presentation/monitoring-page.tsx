@@ -14,7 +14,9 @@ export function MonitoringPage() {
   const mainLoader = useCallback(() => loadMonitoringOverview(), []);
   const main = useResource(mainLoader);
 
-  const visibleTrips = useMemo(() => (main.data?.tripItems ?? []).filter((item) => ['programada', 'em_andamento'].includes(item.viagem.status)).sort((a, b) => Number(b.viagem.status === 'em_andamento') - Number(a.viagem.status === 'em_andamento')), [main.data]);
+  // A API já devolve só programadas/em andamento, em ordem crescente. Aqui resta
+  // subir as que estão em rota, que são as que o operador quer ver primeiro.
+  const visibleTrips = useMemo(() => [...(main.data?.tripItems ?? [])].sort((a, b) => Number(b.viagem.status === 'em_andamento') - Number(a.viagem.status === 'em_andamento')), [main.data]);
   const selectedId = selected ?? visibleTrips[0]?.viagem.id ?? null;
   const liveLoader = useCallback(() => loadLiveTrip(selectedId), [selectedId]);
   const live = useResource(liveLoader);

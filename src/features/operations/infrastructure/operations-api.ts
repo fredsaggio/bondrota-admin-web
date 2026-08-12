@@ -1,30 +1,39 @@
 import { api } from '@/shared/infrastructure/http/api-client';
 import type { JsonRecord } from '@/shared/infrastructure/http/rest-collection';
 import type { CursorPage } from '@/shared/domain/pagination';
-import type { FalhaPlanejamento, Reserva, ReservaComNomes, ReservaResumo, RotaDinamica, StatusPresenca, Viagem, ViagemComCiclo, ViagemHorario, ViagemLocalizacao, ViagemReserva } from '@/features/operations/domain/models';
+import type { FalhaPlanejamento, Reserva, ReservaComNomes, ReservaResumo, RotaDinamica, StatusPresenca, StatusViagem, Viagem, ViagemComCiclo, ViagemComNomes, ViagemHorario, ViagemLocalizacao, ViagemReserva, ViagemResumo } from '@/features/operations/domain/models';
 
-export interface ReservaListParams {
+/** Parâmetros das listagens paginadas por cursor (reservas e viagens). */
+export interface ListParams {
   cursor?: string;
   limit?: number;
-  /** Busca por nome do cliente, nome do destino, status, turno ou sentido — não por data. */
+  /** Busca nos campos exibidos — nunca por data; para isso use o intervalo. */
   q?: string;
   dataInicio?: string;
   dataFim?: string;
 }
 
-function reservaListQuery({ cursor, limit, q, dataInicio, dataFim }: ReservaListParams) {
+/** Só viagens: filtra por status e inverte a ordem para "a mais próxima primeiro". */
+export interface ViagemListParams extends ListParams {
+  status?: StatusViagem[];
+  ordem?: 'asc' | 'desc';
+}
+
+function listQuery({ cursor, limit, q, dataInicio, dataFim, ...rest }: ViagemListParams) {
   const query = new URLSearchParams();
   if (cursor) query.set('cursor', cursor);
   if (limit) query.set('limit', String(limit));
   if (q?.trim()) query.set('q', q.trim());
   if (dataInicio) query.set('data_inicio', dataInicio);
   if (dataFim) query.set('data_fim', dataFim);
+  if (rest.ordem) query.set('ordem', rest.ordem);
+  for (const status of rest.status ?? []) query.append('status', status);
   const suffix = query.toString();
   return suffix ? `?${suffix}` : '';
 }
 
 export const reservas = {
-  list: (params: ReservaListParams = {}) => api<CursorPage<ReservaComNomes>>(`/reservas/${reservaListQuery(params)}`),
+  list: (params: ListParams = {}) => api<CursorPage<ReservaComNomes>>(`/reservas/${listQuery(params)}`),
   summary: () => api<ReservaResumo>('/reservas/resumo'),
   listByCliente: (clienteId: number) => api<Reserva[]>(`/clientes/${clienteId}/reservas/`),
   listByVinculo: (clienteId: number, vinculoId: number) => api<Reserva[]>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/`),
@@ -40,7 +49,8 @@ export const reservas = {
 };
 
 export const viagens = {
-  list: () => api<ViagemComCiclo[]>('/viagens/'),
+  list: (params: ViagemListParams = {}) => api<CursorPage<ViagemComNomes>>(`/viagens/${listQuery(params)}`),
+  summary: () => api<ViagemResumo>('/viagens/resumo'),
   get: (id: number) => api<ViagemComCiclo>(`/viagens/${id}`),
   start: (id: number) => api<Viagem>(`/viagens/${id}/iniciar`, { method: 'POST' }),
   finish: (id: number) => api<Viagem>(`/viagens/${id}/concluir`, { method: 'POST' }),

@@ -31,23 +31,20 @@ export function DashboardPage() {
     if (!data) return null;
     const today = todayInTimeZone(data.timeZone);
     const activeBookings = data.bookingSummary.confirmadas_total;
-    const todaysTrips = data.tripItems.filter((item) => item.ciclo.data_viagem === today);
     const activeFleet = data.vehicleItems.filter((item) => item.status === 'ativo').length;
     const statusData = Object.keys(statusLabels).map((status) => ({
       name: statusLabels[status],
       status,
-      value: data.tripItems.filter((item) => item.viagem.status === status).length,
+      value: data.tripSummary.por_status[status as keyof typeof data.tripSummary.por_status] ?? 0,
     }));
     const shifts = (['MT', 'VT', 'NT'] as const).map((turno) => ({
       turno,
-      viagens: data.tripItems.filter((item) => item.ciclo.turno === turno).length,
+      viagens: data.tripSummary.por_turno[turno] ?? 0,
       reservas: data.bookingSummary.confirmadas_por_turno[turno] ?? 0,
     }));
-    const upcoming = data.tripItems
-      .filter((item) => ['programada', 'em_andamento'].includes(item.viagem.status))
-      .sort((a, b) => a.ciclo.data_viagem.localeCompare(b.ciclo.data_viagem))
-      .slice(0, 6);
-    return { today, activeBookings, todaysTrips, activeFleet, statusData, shifts, upcoming };
+    // "Próximas" já vem do servidor em ordem crescente e limitada — ordenar e
+    // cortar aqui exigiria ter a tabela inteira em memória.
+    return { today, activeBookings, activeFleet, statusData, shifts, upcoming: data.tripSummary.proximas };
   }, [resource.data]);
 
   return (
@@ -57,7 +54,7 @@ export function DashboardPage() {
       {resource.loading || !resource.data || !metrics ? <LoadingRows /> : (
         <>
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={CalendarClock} label="Viagens hoje" value={String(metrics.todaysTrips.length)} detail={`${metrics.todaysTrips.filter((item) => item.viagem.status === 'em_andamento').length} em andamento`} tone="blue" />
+            <Metric icon={CalendarClock} label="Viagens hoje" value={String(resource.data.tripSummary.hoje_total)} detail={`${resource.data.tripSummary.hoje_em_andamento} em andamento`} tone="blue" />
             <Metric icon={UsersRound} label="Reservas confirmadas" value={String(metrics.activeBookings)} detail={`${resource.data.clientItems.length} clientes cadastrados`} tone="green" />
             <Metric icon={BusFront} label="Frota disponível" value={`${metrics.activeFleet}/${resource.data.vehicleItems.length}`} detail={`${resource.data.vehicleItems.filter((item) => item.status === 'manutencao').length} em manutenção`} tone="amber" />
             <Metric icon={AlertTriangle} label="Falhas pendentes" value={String(resource.data.failures.length)} detail={resource.data.failures.length ? 'Aguardando nova tentativa' : 'Processamento saudável'} tone={resource.data.failures.length ? 'red' : 'green'} />
@@ -110,9 +107,9 @@ export function DashboardPage() {
                 <div className="table-wrap">
                   <table className="data-table">
                     <thead><tr><th>Viagem</th><th>Data</th><th>Turno</th><th>Sentido</th><th>Veículo</th><th>Status</th></tr></thead>
-                    <tbody>{metrics.upcoming.map(({ viagem, ciclo }) => (
+                    <tbody>{metrics.upcoming.map(({ viagem, ciclo, veiculo_placa }) => (
                       <tr key={viagem.id}>
-                        <td className="font-semibold">#{viagem.id}</td><td>{localDate(ciclo.data_viagem)}</td><td><span className="badge badge-blue">{ciclo.turno}</span></td><td className="capitalize">{viagem.sentido}</td><td>#{ciclo.veiculo_id}</td><td><Status status={viagem.status} /></td>
+                        <td className="font-semibold">#{viagem.id}</td><td>{localDate(ciclo.data_viagem)}</td><td><span className="badge badge-blue">{ciclo.turno}</span></td><td className="capitalize">{viagem.sentido}</td><td>{veiculo_placa}</td><td><Status status={viagem.status} /></td>
                       </tr>
                     ))}</tbody>
                   </table>

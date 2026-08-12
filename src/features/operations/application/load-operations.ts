@@ -1,17 +1,16 @@
-import { planejamento, viagens } from '@/features/operations/infrastructure/operations-api';
-import type { FalhaPlanejamento, ViagemComCiclo } from '@/features/operations/domain/models';
+import { planejamento } from '@/features/operations/infrastructure/operations-api';
+import type { FalhaPlanejamento } from '@/features/operations/domain/models';
 
 export interface OperationsData {
-  trips: ViagemComCiclo[];
   failures: FalhaPlanejamento[];
 }
 
 /**
- * Reservas ficam fora daqui: a aba tem paginação própria por cursor. Os nomes de
- * cliente e destino também saíram — a API já os devolve na listagem, então o
- * painel não precisa mais baixar as tabelas inteiras só para montar um mapa.
+ * Só as falhas do planejamento: reservas e viagens têm paginação própria por
+ * cursor. As falhas já vinham limitadas a 100 pelo próprio endpoint, então não
+ * carregam o mesmo risco de crescer sem teto.
  */
 export async function loadOperations(): Promise<OperationsData> {
-  const [trips, failures] = await Promise.all([viagens.list(), planejamento.failures(100)]);
-  return { trips, failures };
+  const failures = await planejamento.failures(100);
+  return { failures };
 }

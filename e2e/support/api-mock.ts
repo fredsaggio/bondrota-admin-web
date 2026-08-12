@@ -154,6 +154,14 @@ export async function mockApi(
     if (path === '/reservas/resumo') {
       return json(route, { confirmadas_total: 0, confirmadas_por_turno: {} });
     }
+    if (path === '/viagens/resumo') {
+      return json(route, {
+        por_status: {}, por_turno: {}, hoje_total: 0, hoje_em_andamento: 0, proximas: [],
+      });
+    }
+    if (path === '/viagens/') {
+      return json(route, { items: [], has_more: false });
+    }
 
     // Listagem paginada por cursor: aplica busca, intervalo de data e recorte,
     // como o backend faz, para o teste exercitar o fluxo de verdade.

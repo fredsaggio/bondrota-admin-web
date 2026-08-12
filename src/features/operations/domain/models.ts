@@ -30,6 +30,21 @@ export interface CicloViagem {
   expires_at: string; created_at: string; updated_at: string;
 }
 export interface ViagemComCiclo { viagem: Viagem; ciclo: CicloViagem }
+
+/** Item da listagem administrativa: a API já resolve município e placa via JOIN. */
+export interface ViagemComNomes extends ViagemComCiclo {
+  municipio_nome: string;
+  veiculo_placa: string;
+}
+
+/** Agregados de `GET /viagens/resumo`, para o painel não contar linhas em memória. */
+export interface ViagemResumo {
+  por_status: Partial<Record<StatusViagem, number>>;
+  por_turno: Partial<Record<TurnoOperacional, number>>;
+  hoje_total: number;
+  hoje_em_andamento: number;
+  proximas: ViagemComNomes[];
+}
 export interface ViagemHorario {
   id: number; viagem_id: number; tipo: 'partida_prevista' | 'inicio_real' | 'fim_real';
   horario: string; created_at: string; updated_at: string;

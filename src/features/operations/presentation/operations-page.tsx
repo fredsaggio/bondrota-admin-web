@@ -9,7 +9,7 @@ import { useCursorList } from '@/shared/application/use-cursor-list';
 import { useDebouncedValue } from '@/shared/application/use-debounced-value';
 import { loadOperations, type OperationsData } from '@/features/operations/application/load-operations';
 import { reservas, viagens } from '@/features/operations/infrastructure/operations-api';
-import type { FalhaPlanejamento, ReservaComNomes, RotaDinamica, StatusPresenca, ViagemComCiclo, ViagemHorario, ViagemReserva } from '@/features/operations/domain/models';
+import type { FalhaPlanejamento, ReservaComNomes, RotaDinamica, StatusPresenca, ViagemComNomes, ViagemHorario, ViagemReserva } from '@/features/operations/domain/models';
 
 type Tab = 'reservas' | 'viagens' | 'falhas';
 
@@ -22,43 +22,41 @@ export function OperationsPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // A busca de reservas vai ao servidor, então espera o usuário parar de digitar.
-  // Viagens e falhas ainda filtram em memória, onde o termo cru responde na hora.
+  // Reservas e viagens buscam no servidor, então esperam o usuário parar de
+  // digitar. As falhas ainda filtram em memória, onde o termo cru responde na hora.
   const debouncedSearch = useDebouncedValue(search);
   const loadBookings = useCallback(
     (cursor?: string) => reservas.list({ cursor, q: debouncedSearch, dataInicio: range.inicio, dataFim: range.fim }),
     [debouncedSearch, range.inicio, range.fim],
   );
+  const loadTrips = useCallback(
+    (cursor?: string) => viagens.list({ cursor, q: debouncedSearch, dataInicio: range.inicio, dataFim: range.fim }),
+    [debouncedSearch, range.inicio, range.fim],
+  );
   const bookings = useCursorList<ReservaComNomes>(loadBookings);
+  const trips = useCursorList<ViagemComNomes>(loadTrips);
 
   const loader = useCallback(() => loadOperations(), []);
   const resource = useResource<OperationsData>(loader);
 
-  const filtered = useMemo(() => {
-    const data = resource.data;
-    if (!data) return [];
+  const failures = useMemo(() => {
+    const items = resource.data?.failures ?? [];
     const query = search.trim().toLowerCase();
-
-    // Busca só nos campos realmente exibidos em cada tabela. JSON.stringify do
-    // item inteiro batia com ids internos e nomes de campo, não só com o que a
-    // tela mostra.
-    if (tab === 'viagens') {
-      if (!query) return data.trips;
-      return data.trips.filter(({ viagem, ciclo }) => [
-        String(viagem.id), ciclo.data_viagem, ciclo.turno, String(ciclo.municipio_destino_id), viagem.sentido,
-        String(ciclo.veiculo_id), viagem.status,
-      ].join(' ').toLowerCase().includes(query));
-    }
-    if (!query) return data.failures;
-    return data.failures.filter((item) => [
+    if (!query) return items;
+    // Busca só nos campos realmente exibidos. JSON.stringify do item inteiro
+    // batia com ids internos e nomes de campo, não só com o que a tela mostra.
+    return items.filter((item) => [
       String(item.id), item.data_viagem, String(item.municipio_destino_id), item.turno, item.sentido,
       String(item.tentativas), item.ultimo_erro ?? '', item.proxima_tentativa_em ?? '',
     ].join(' ').toLowerCase().includes(query));
-  }, [resource.data, search, tab]);
+  }, [resource.data, search]);
+
+  // As abas paginadas compartilham forma; a de falhas continua com o resource.
+  const paginated = tab === 'reservas' ? bookings : tab === 'viagens' ? trips : null;
 
   const reloadCurrentTab = useCallback(
-    () => (tab === 'reservas' ? bookings.reload() : resource.reload()),
-    [bookings, resource, tab],
+    () => (tab === 'reservas' ? bookings.reload() : tab === 'viagens' ? trips.reload() : resource.reload()),
+    [bookings, resource, tab, trips],
   );
 
   async function action(run: () => Promise<unknown>, success: string) {
@@ -69,9 +67,9 @@ export function OperationsPage() {
   }
 
   const labels = { reservas: 'Reservas', viagens: 'Viagens', falhas: 'Falhas do planejamento' };
-  const listLoading = tab === 'reservas' ? bookings.loading : resource.loading;
-  const listError = tab === 'reservas' ? bookings.error : resource.error;
-  const isEmpty = tab === 'reservas' ? bookings.items.length === 0 : filtered.length === 0;
+  const listLoading = paginated ? paginated.loading : resource.loading;
+  const listError = paginated ? paginated.error : resource.error;
+  const isEmpty = paginated ? paginated.items.length === 0 : failures.length === 0;
 
   return (
     <div className="space-y-5 p-4 sm:p-6 lg:p-7">
@@ -82,23 +80,23 @@ export function OperationsPage() {
         <div className="flex flex-col gap-3 border-b border-[#e4e9ef] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-bold">{labels[tab]}</h2>
-            <p className="mt-1 text-xs text-slate-500">{tab === 'reservas' ? `${bookings.items.length} carregada(s)${bookings.hasMore ? ' · há mais' : ''}` : 'Atualização sob demanda a partir da API'}</p>
+            <p className="mt-1 text-xs text-slate-500">{paginated ? `${paginated.items.length} carregada(s)${paginated.hasMore ? ' · há mais' : ''}` : 'Atualização sob demanda a partir da API'}</p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            {tab === 'reservas' && <DateRange value={range} onChange={setRange} />}
+            {paginated && <DateRange value={range} onChange={setRange} />}
             <SearchField value={search} onChange={setSearch} />
             <button className="icon-btn shrink-0" onClick={() => void reloadCurrentTab()} title="Atualizar"><RefreshCw size={16} /></button>
           </div>
         </div>
         {listLoading ? <LoadingRows /> : listError ? <ErrorState message={listError} retry={reloadCurrentTab} /> : isEmpty ? <EmptyState /> : (
           tab === 'reservas' ? <BookingsTable items={bookings.items} busy={busy} onCancel={(id) => void action(() => reservas.cancel(id), 'Reserva cancelada.')} onDelete={(id) => setConfirm({ kind: 'delete-booking', id })} /> :
-          tab === 'viagens' ? <TripsTable items={filtered as ViagemComCiclo[]} busy={busy} onDetail={setDetailId} onStart={(id) => void action(() => viagens.start(id), 'Viagem iniciada.')} onFinish={(id) => void action(() => viagens.finish(id), 'Viagem concluída.')} onCancel={(id) => setConfirm({ kind: 'cancel-trip', id })} /> :
-          <FailuresTable items={filtered as FalhaPlanejamento[]} />
+          tab === 'viagens' ? <TripsTable items={trips.items} busy={busy} onDetail={setDetailId} onStart={(id) => void action(() => viagens.start(id), 'Viagem iniciada.')} onFinish={(id) => void action(() => viagens.finish(id), 'Viagem concluída.')} onCancel={(id) => setConfirm({ kind: 'cancel-trip', id })} /> :
+          <FailuresTable items={failures} />
         )}
-        {tab === 'reservas' && bookings.hasMore && !listLoading && (
+        {paginated?.hasMore && !listLoading && (
           <div className="border-t border-[#e4e9ef] p-4 text-center">
-            <button className="btn btn-secondary" disabled={bookings.loadingMore} onClick={() => void bookings.loadMore()}>
-              {bookings.loadingMore ? 'Carregando...' : 'Carregar mais'}
+            <button className="btn btn-secondary" disabled={paginated.loadingMore} onClick={() => void paginated.loadMore()}>
+              {paginated.loadingMore ? 'Carregando...' : 'Carregar mais'}
             </button>
           </div>
         )}
@@ -124,8 +122,8 @@ function BookingsTable({ items, busy, onCancel, onDelete }: { items: ReservaComN
   return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Cliente</th><th>Data</th><th>Turno</th><th>Sentido</th><th>Destino</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td className="font-semibold">{item.id}</td><td>{item.cliente_nome}</td><td>{date(item.data_viagem)}</td><td><span className="badge badge-blue">{item.turno}</span></td><td className="capitalize">{item.sentido}</td><td>{item.destino_nome}</td><td><Badge status={item.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8 text-amber-600" disabled={busy || item.status === 'cancelada'} onClick={() => onCancel(item.id)} title="Cancelar"><Ban size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onDelete(item.id)} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}</tbody></table></div>;
 }
 
-function TripsTable({ items, busy, onDetail, onStart, onFinish, onCancel }: { items: ViagemComCiclo[]; busy: boolean; onDetail(id: number): void; onStart(id: number): void; onFinish(id: number): void; onCancel(id: number): void }) {
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Data</th><th>Turno</th><th>Destino</th><th>Sentido</th><th>Veículo</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map(({ viagem, ciclo }) => <tr key={viagem.id}><td className="font-semibold">{viagem.id}</td><td>{date(ciclo.data_viagem)}</td><td><span className="badge badge-blue">{ciclo.turno}</span></td><td>Município #{ciclo.municipio_destino_id}</td><td className="capitalize">{viagem.sentido}</td><td>#{ciclo.veiculo_id}</td><td><Badge status={viagem.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8" onClick={() => onDetail(viagem.id)} title="Detalhes"><Eye size={14} /></button>{viagem.status === 'programada' && <button className="icon-btn !h-8 !w-8 text-emerald-600" disabled={busy} onClick={() => onStart(viagem.id)} title="Iniciar"><Play size={14} /></button>}{viagem.status === 'em_andamento' && <button className="icon-btn !h-8 !w-8 text-emerald-600" disabled={busy} onClick={() => onFinish(viagem.id)} title="Concluir"><Check size={14} /></button>}{!['concluida', 'cancelada'].includes(viagem.status) && <button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onCancel(viagem.id)} title="Cancelar"><Ban size={14} /></button>}</div></td></tr>)}</tbody></table></div>;
+function TripsTable({ items, busy, onDetail, onStart, onFinish, onCancel }: { items: ViagemComNomes[]; busy: boolean; onDetail(id: number): void; onStart(id: number): void; onFinish(id: number): void; onCancel(id: number): void }) {
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Data</th><th>Turno</th><th>Destino</th><th>Sentido</th><th>Veículo</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map(({ viagem, ciclo, municipio_nome, veiculo_placa }) => <tr key={viagem.id}><td className="font-semibold">{viagem.id}</td><td>{date(ciclo.data_viagem)}</td><td><span className="badge badge-blue">{ciclo.turno}</span></td><td>{municipio_nome}</td><td className="capitalize">{viagem.sentido}</td><td>{veiculo_placa}</td><td><Badge status={viagem.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8" onClick={() => onDetail(viagem.id)} title="Detalhes"><Eye size={14} /></button>{viagem.status === 'programada' && <button className="icon-btn !h-8 !w-8 text-emerald-600" disabled={busy} onClick={() => onStart(viagem.id)} title="Iniciar"><Play size={14} /></button>}{viagem.status === 'em_andamento' && <button className="icon-btn !h-8 !w-8 text-emerald-600" disabled={busy} onClick={() => onFinish(viagem.id)} title="Concluir"><Check size={14} /></button>}{!['concluida', 'cancelada'].includes(viagem.status) && <button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onCancel(viagem.id)} title="Cancelar"><Ban size={14} /></button>}</div></td></tr>)}</tbody></table></div>;
 }
 
 function FailuresTable({ items }: { items: FalhaPlanejamento[] }) {
