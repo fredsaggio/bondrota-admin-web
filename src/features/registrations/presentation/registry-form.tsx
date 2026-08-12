@@ -67,6 +67,11 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
   const [routeStops, setRouteStops] = useState<number[]>(() => routeStopIds(record));
   const [photo, setPhoto] = useState(value(record, 'foto'));
   const [comprovante, setComprovante] = useState(value(record, 'comprovante'));
+  // Pasta de espera usada só ao criar (o registro ainda não tem id — o
+  // backend organiza o arquivo no caminho definitivo depois que ele é salvo).
+  // Um id por campo, gerado uma vez e reaproveitado a cada reenvio dentro da
+  // mesma sessão do formulário, para reenviar substituir em vez de acumular.
+  const [novoUploadId] = useState(() => crypto.randomUUID());
   // Município escolhido em destinos, usado só para enquadrar o mapa. Fica aqui
   // porque quem seleciona (MunicipioField) e quem reage (LocationPicker) são
   // irmãos. Começa nulo mesmo ao editar: o mapa deve abrir na coordenada já
@@ -135,7 +140,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <MunicipioField defaultMunicipioId={Number(record?.municipio_trabalho_id ?? 0)} name="municipio_trabalho_id" />
           <Field label="Residência" name="residencia" defaultValue={value(record, 'residencia')} span />
-          <UploadField label="Foto" bucket="fotos" folder="motoristas" accept="image/*" current={photo} onUploaded={setPhoto} />
+          <UploadField label="Foto" bucket="fotos" folder={record ? `motoristas/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
         </>}
 
         {entity === 'clientes' && <>
@@ -143,7 +148,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           {!record && <><MaskedField label="CPF" name="cpf" format={formatCPF} maxLength={14} placeholder="000.000.000-00" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
           <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
           <Field label="Data de nascimento" name="data_nasc" type="date" defaultValue={value(record, 'data_nasc')} required />
-          <UploadField label="Foto" bucket="fotos" folder="clientes" accept="image/*" current={photo} onUploaded={setPhoto} />
+          <UploadField label="Foto" bucket="fotos" folder={record ? `clientes/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
         </>}
 
         {entity === 'vinculos' && <>
@@ -164,7 +169,19 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <Field label="Curso" name="curso" defaultValue={value(record, 'curso')} required />
           <Field label="Validade" name="validade" type="date" defaultValue={value(record, 'validade')} required />
           <Weekdays defaultValues={(record?.horarios_fixos as Array<{ dia_semana: number }> | undefined)?.map((item) => item.dia_semana) ?? []} />
-          <UploadField label="Comprovante" bucket="documentos" folder="comprovantes" accept="application/pdf,image/*" current={comprovante} onUploaded={setComprovante} />
+          {/* Nome fixo só faz sentido editando um vínculo já existente — nesse
+              caso o tipo gravado é o mesmo que está na tela. Ao criar, o
+              backend é quem monta o nome definitivo com o tipo enviado no
+              formulário, então "comprovante" solto na pasta de espera basta. */}
+          <UploadField
+            label="Comprovante"
+            bucket="documentos"
+            folder={record ? `clientes/${record.cliente_id}/vinculos/${record.id}` : `_novo/${novoUploadId}`}
+            filename={record ? `comprovante-${value(record, 'tipo')}` : 'comprovante'}
+            accept="application/pdf,image/*"
+            current={comprovante}
+            onUploaded={setComprovante}
+          />
         </>}
       </div>
 
@@ -310,11 +327,11 @@ function Weekdays({ defaultValues }: { defaultValues: number[] }) {
   return <div className="sm:col-span-2"><span className="field-label">Dias fixos</span><div className="grid grid-cols-5 gap-2">{['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map((label, index) => <label key={label} className="flex min-h-10 flex-col items-center justify-center rounded-md border border-[#dfe5ed] text-xs text-slate-600"><input className="mb-1 accent-[#426fa8]" type="checkbox" name="horarios_fixos" value={index + 1} defaultChecked={defaultValues.includes(index + 1)} />{label}</label>)}</div></div>;
 }
 
-function UploadField({ label, bucket, folder, accept, current, onUploaded }: { label: string; bucket: 'fotos' | 'documentos'; folder: string; accept: string; current: string; onUploaded(value: string): void }) {
+function UploadField({ label, bucket, folder, filename, accept, current, onUploaded }: { label: string; bucket: 'fotos' | 'documentos'; folder: string; filename: string; accept: string; current: string; onUploaded(value: string): void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState(false);
-  const upload = async (file?: File) => { if (!file) return; setBusy(true); setError(''); try { onUploaded(await storage.upload(file, bucket, folder)); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no upload.'); } finally { setBusy(false); } };
+  const upload = async (file?: File) => { if (!file) return; setBusy(true); setError(''); try { onUploaded(await storage.upload(file, bucket, folder, filename)); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no upload.'); } finally { setBusy(false); } };
   const view = async (event: MouseEvent<HTMLButtonElement>) => {
     // A label inteira abre o seletor de arquivo ao ser clicada; sem isso o clique
     // no botão "ver" também dispararia o input de upload escondido.

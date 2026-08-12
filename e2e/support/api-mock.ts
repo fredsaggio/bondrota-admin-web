@@ -28,6 +28,8 @@ export interface ApiMock {
   vinculoRequests: string[];
   /** Query strings recebidas em `GET /viagens/`, na ordem. */
   viagemRequests: string[];
+  /** Caminhos pedidos em `POST /storage/signed-upload-url`, na ordem. */
+  uploadRequests: string[];
 }
 
 export interface MockViagem {
@@ -228,6 +230,11 @@ async function stubMapNetwork(page: Page) {
   });
 }
 
+/** Aceita o PUT no destino fabricado pelo mock de signed-upload-url, sem sair para a rede real. */
+async function stubUploadTarget(page: Page) {
+  await page.route(/mock-upload\.test/, (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: '' }));
+}
+
 /**
  * Reproduz o contrato de sessao da API (`/admin/login`, `/admin/session`,
  * `/admin/logout`) mantendo estado entre as requisicoes, como o backend faz.
@@ -238,7 +245,7 @@ async function stubMapNetwork(page: Page) {
  */
 export async function mockApi(
   page: Page,
-  options: { authenticated?: boolean; reservas?: MockReserva[]; clientes?: MockCliente[]; vinculos?: MockVinculo[]; viagens?: MockViagem[] } = {},
+  options: { authenticated?: boolean; reservas?: MockReserva[]; clientes?: MockCliente[]; vinculos?: MockVinculo[]; viagens?: MockViagem[]; motoristas?: Record<string, unknown>[] } = {},
 ): Promise<ApiMock> {
   let authenticated = options.authenticated ?? false;
   let protectedRoutesFail = false;
@@ -250,8 +257,10 @@ export async function mockApi(
   const vinculoRequests: string[] = [];
   const allViagens = options.viagens ?? [];
   const viagemRequests: string[] = [];
+  const uploadRequests: string[] = [];
 
   await stubMapNetwork(page);
+  await stubUploadTarget(page);
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -313,6 +322,17 @@ export async function mockApi(
 
     // Demais rotas exigem sessao, como no backend.
     if (!authenticated || protectedRoutesFail) return unauthorized(route);
+
+    if (path === '/storage/signed-upload-url' && method === 'POST') {
+      const body = request.postDataJSON() as { bucket?: string; path?: string };
+      uploadRequests.push(body.path ?? '');
+      return json(route, {
+        bucket: body.bucket,
+        path: body.path,
+        signed_url: `https://mock-upload.test/${body.bucket}/${body.path}`,
+        token: 'mock-token',
+      });
+    }
 
     // Contagens agregadas do painel — o dashboard le totais, nao linhas.
     if (path === '/reservas/resumo') {
@@ -440,6 +460,10 @@ export async function mockApi(
       });
     }
 
+    if (path === '/motoristas/' && method === 'GET') {
+      return json(route, options.motoristas ?? []);
+    }
+
     // Catalogo de municipios: o seletor dos destinos precisa de opcoes reais
     // para o mapa reagir a escolha.
     if (path === '/municipios/') {
@@ -462,5 +486,6 @@ export async function mockApi(
     clienteRequests,
     vinculoRequests,
     viagemRequests,
+    uploadRequests,
   };
 }

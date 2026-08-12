@@ -86,13 +86,21 @@ export const storage = {
   signedDownload: (payload: { bucket: 'fotos' | 'documentos'; path: string; expires_in_seconds?: number }) => api<{
     bucket: string; path: string; signed_url: string; expires_in_seconds: number;
   }>('/storage/signed-download-url', { method: 'POST', body: payload }),
-  async upload(file: File, bucket: 'fotos' | 'documentos', folder: string) {
-    const clean = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
+  /**
+   * `filename` é fixo por slot (ex.: "foto", "comprovante-estudante"), não um
+   * nome gerado por upload — com `upsert`, reenviar o mesmo slot substitui o
+   * arquivo anterior em vez de acumular um órfão a cada troca de foto. O
+   * caminho (`folder`) já vem pronto de quem chama: caminho definitivo quando
+   * o registro já tem ID, ou uma pasta de espera quando ainda não tem — nesse
+   * caso o backend move para o lugar certo depois que o registro é criado.
+   */
+  async upload(file: File, bucket: 'fotos' | 'documentos', folder: string, filename: string) {
+    const ext = file.name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? '';
     const signed = await this.signedUpload({
       bucket,
-      path: `${folder}/${crypto.randomUUID()}-${clean}`,
+      path: `${folder}/${filename}${ext}`,
       content_type: file.type || 'application/octet-stream',
-      upsert: false,
+      upsert: true,
     });
     await uploadToSignedURL(signed.signed_url, file);
     return signed.path;
