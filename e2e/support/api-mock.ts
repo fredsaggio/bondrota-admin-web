@@ -8,6 +8,8 @@ export const TEST_ADMIN = {
 
 export const APP_CONFIG = {
   cidade_base: 'Campo Alegre',
+  latitude_base: -9.7799,
+  longitude_base: -36.3576,
   fuso_horario: 'America/Maceio',
 };
 
@@ -164,6 +166,36 @@ function unauthorized(route: Route) {
   return route.fulfill({ status: 401, contentType: 'text/plain', body: 'unauthorized' });
 }
 
+/** Municipios de AL usados pelo seletor dos destinos. */
+export const MOCK_MUNICIPIOS = [
+  { codigo_ibge: 2700300, nome: 'Arapiraca', uf: 'AL', ativo: true },
+  { codigo_ibge: 2701407, nome: 'Campo Alegre', uf: 'AL', ativo: true },
+];
+
+/** PNG 1x1 transparente. O desenho do tile nao afeta nada que a suite afirma. */
+const BLANK_TILE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+
+/** Area do municipio devolvida pelo Nominatim mocado: [sul, norte, oeste, leste]. */
+export const MOCK_MUNICIPIO_BOUNDS = ['-9.8820000', '-9.6354476', '-36.7544638', '-36.5410000'];
+
+/**
+ * A suite mocada roda offline e em todo PR. Os mapas do painel buscariam tiles
+ * do OpenStreetMap e o contorno do municipio no Nominatim; deixar isso sair
+ * para a rede real tornaria os testes lentos e instaveis, e os quebraria em
+ * qualquer maquina sem internet. Ambos viram resposta fixa aqui.
+ */
+async function stubMapNetwork(page: Page) {
+  await page.route(/tile\.openstreetmap\.org/, (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: BLANK_TILE }));
+
+  await page.route(/nominatim\.openstreetmap\.org/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{ boundingbox: MOCK_MUNICIPIO_BOUNDS }]),
+    }));
+}
+
 /**
  * Reproduz o contrato de sessao da API (`/admin/login`, `/admin/session`,
  * `/admin/logout`) mantendo estado entre as requisicoes, como o backend faz.
@@ -186,6 +218,8 @@ export async function mockApi(
   const vinculoRequests: string[] = [];
   const allViagens = options.viagens ?? [];
   const viagemRequests: string[] = [];
+
+  await stubMapNetwork(page);
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -372,6 +406,13 @@ export async function mockApi(
         has_more: hasMore,
         ...(hasMore ? { next_cursor: btoa(String(next)) } : {}),
       });
+    }
+
+    // Catalogo de municipios: o seletor dos destinos precisa de opcoes reais
+    // para o mapa reagir a escolha.
+    if (path === '/municipios/') {
+      const uf = url.searchParams.get('uf') ?? '';
+      return json(route, MOCK_MUNICIPIOS.filter((item) => item.uf === uf));
     }
 
     // As demais listagens ainda respondem um array; vazio basta para renderizar.

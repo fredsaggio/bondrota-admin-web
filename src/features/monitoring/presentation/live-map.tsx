@@ -1,16 +1,36 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet';
+import { config } from '@/shared/infrastructure/config/config-api';
 import type { RotaDinamica, ViagemLocalizacao } from '@/features/operations/domain/models';
 
 interface Props { location: ViagemLocalizacao | null; route: RotaDinamica | null }
 
+/** Último recurso quando o `/config` não responde: o país inteiro, e o admin navega. */
+const BRAZIL_CENTER: LatLngExpression = [-14.24, -51.93];
+
 export default function LiveMap({ location, route }: Props) {
+  const [baseCity, setBaseCity] = useState<LatLngExpression | null>(null);
+
+  // O `center` do MapContainer só vale na montagem, então esperamos saber onde
+  // fica a cidade base antes de desenhar. Sem viagem selecionada é ela que
+  // enquadra o mapa — antes havia um ponto fixo de Alagoas no código, que
+  // estaria errado em qualquer outra cidade atendida.
+  useEffect(() => {
+    let active = true;
+    config.get()
+      .then((value) => { if (active) setBaseCity([value.latitude_base, value.longitude_base]); })
+      .catch(() => { if (active) setBaseCity(BRAZIL_CENTER); });
+    return () => { active = false; };
+  }, []);
+
   const routePoints: LatLngExpression[] = route?.rota.geometry?.coordinates?.map(([longitude, latitude]) => [latitude, longitude]) ?? [];
   const current: LatLngExpression | null = location ? [location.latitude, location.longitude] : null;
-  const initial = current ?? routePoints[0] ?? [-9.65, -36.0];
+
+  if (!baseCity) return <div className="app-loader !min-h-full"><span className="spinner" /><span>Carregando mapa</span></div>;
+  const initial = current ?? routePoints[0] ?? baseCity;
 
   return (
     <MapContainer center={initial} zoom={12} className="h-full w-full" zoomControl>
