@@ -25,7 +25,7 @@ function friendlyMessage(status: number, raw: string) {
     // de permissão logo abaixo, que não diz o que a pessoa precisa corrigir.
     'senha atual incorreta': 'A senha atual está incorreta.',
     'nome must contain only letters and spaces': 'O nome deve conter apenas letras e espaços.',
-    'cpf must have 11 digits': 'O CPF deve ter 11 dígitos.',
+    'cpf is not a valid cpf number': 'CPF inválido. Confira os dígitos digitados.',
     'telefone must be a valid cellphone number: ddd + 9 digits starting with 9': 'O telefone deve ser um celular válido: DDD + 9 dígitos.',
     'placa must have 7 characters: lllnnnn (old) or lllnlnn (mercosul)': 'A placa deve seguir um dos padrões: ABC-1234 ou ABC1D23.',
   };
