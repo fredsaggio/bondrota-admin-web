@@ -1,5 +1,6 @@
 import { api, uploadToSignedURL } from '@/shared/infrastructure/http/api-client';
 import { createRestCollection, type JsonRecord } from '@/shared/infrastructure/http/rest-collection';
+import type { CursorPage } from '@/shared/domain/pagination';
 import type { Cliente, Destino, HorarioTurno, Motorista, Municipio, Parada, RotaInterna, Veiculo, Vinculo, VinculoComCliente } from '@/features/registrations/domain/models';
 
 // Administradores não são gerenciados pelo painel: criar/editar/remover admin é
@@ -12,7 +13,31 @@ export const destinos = {
 export const paradas = createRestCollection<Parada>('/paradas');
 export const veiculos = createRestCollection<Veiculo>('/veiculos');
 export const motoristas = createRestCollection<Motorista>('/motoristas');
-export const clientes = createRestCollection<Cliente>('/clientes');
+// `list` fica de fora de propósito: `GET /clientes/` agora responde um envelope
+// paginado, e manter o método herdado (tipado como `Cliente[]`) deixaria um erro
+// de runtime invisível para o typecheck. Quem precisa da listagem usa `page`.
+const clienteRest = (() => {
+  const { list, ...rest } = createRestCollection<Cliente>('/clientes');
+  void list;
+  return rest;
+})();
+
+export const clientes = {
+  ...clienteRest,
+  /**
+   * Listagem paginada por cursor. A tabela de clientes cresce indefinidamente —
+   * a retenção apaga reservas e viagens, mas nunca cliente.
+   */
+  page: (params: { cursor?: string; limit?: number; q?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.cursor) query.set('cursor', params.cursor);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.q?.trim()) query.set('q', params.q.trim());
+    const suffix = query.toString();
+    return api<CursorPage<Cliente>>(`/clientes/${suffix ? `?${suffix}` : ''}`);
+  },
+  summary: () => api<{ total: number }>('/clientes/resumo'),
+};
 export const horarios = createRestCollection<HorarioTurno>('/horarios-turno-viagem');
 
 export const municipios = {

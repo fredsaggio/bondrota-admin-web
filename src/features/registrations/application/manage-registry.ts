@@ -1,6 +1,7 @@
 import { clientes, destinos, horarios, motoristas, municipios, paradas, rotasInternas, veiculos, vinculos } from '@/features/registrations/infrastructure/registrations-api';
 import { ApiError } from '@/shared/infrastructure/http/api-client';
-import type { EntityKey, RegistryPageData, RegistryReferences, RegistryRecord } from '@/features/registrations/domain/registry';
+import type { CursorPage } from '@/shared/domain/pagination';
+import type { EntityKey, RegistryReferences, RegistryRecord } from '@/features/registrations/domain/registry';
 
 /**
  * Referências que o formulário de cada entidade consome. Só as listadas aqui são
@@ -14,7 +15,9 @@ const requiredReferences: Record<EntityKey, ReadonlyArray<keyof RegistryReferenc
   veiculos: [],
   motoristas: [],
   clientes: [],
-  vinculos: ['clientes', 'destinos', 'rotas'],
+  // 'clientes' saiu daqui: o select virou um combobox que busca no servidor, em
+  // vez de baixar a tabela inteira para montar as opções.
+  vinculos: ['destinos', 'rotas'],
 };
 
 /**
@@ -27,23 +30,38 @@ const MUNICIPIO_ID_FIELDS: Partial<Record<EntityKey, string>> = {
   motoristas: 'municipio_trabalho_id',
 };
 
-export async function loadRegistry(entity: EntityKey): Promise<RegistryPageData> {
+/** Entidades cuja listagem é paginada pelo servidor. */
+export const PAGINATED_ENTITIES: ReadonlySet<EntityKey> = new Set<EntityKey>(['clientes']);
+
+export async function loadRegistryReferences(entity: EntityKey): Promise<RegistryReferences> {
   const needed = requiredReferences[entity];
   const reference = <T>(key: keyof RegistryReferences, load: () => Promise<T[]>): Promise<T[]> =>
     needed.includes(key) ? load() : Promise.resolve([]);
 
-  const [records, stopItems, destinationItems, routeItems, clientItems] = await Promise.all([
-    loadEntity(entity),
+  const [stopItems, destinationItems, routeItems] = await Promise.all([
     reference('paradas', paradas.list),
     reference('destinos', destinos.list),
     reference('rotas', rotasInternas.list),
-    reference('clientes', clientes.list),
   ]);
 
-  return {
-    records: await attachMunicipioNames(entity, records),
-    references: { paradas: stopItems, destinos: destinationItems, rotas: routeItems, clientes: clientItems },
-  };
+  return { paradas: stopItems, destinos: destinationItems, rotas: routeItems };
+}
+
+/**
+ * Uma página de registros. As entidades não paginadas devolvem tudo numa página
+ * só (`has_more: false`), então a tela tem um caminho único para as duas formas.
+ */
+export async function loadRegistryRecords(
+  entity: EntityKey,
+  params: { cursor?: string; busca?: string } = {},
+): Promise<CursorPage<RegistryRecord>> {
+  if (entity === 'clientes') {
+    const page = await clientes.page({ cursor: params.cursor, q: params.busca });
+    return { items: page.items.map((item) => ({ ...item })), next_cursor: page.next_cursor, has_more: page.has_more };
+  }
+
+  const records = await attachMunicipioNames(entity, await loadEntity(entity));
+  return { items: records, has_more: false };
 }
 
 /** Busca só os códigos IBGE distintos usados nos registros exibidos, um por vez,
@@ -76,7 +94,9 @@ async function attachMunicipioNames(entity: EntityKey, records: RegistryRecord[]
   });
 }
 
-async function loadEntity(entity: EntityKey): Promise<RegistryRecord[]> {
+/** Clientes fica de fora: a listagem dele é paginada e tratada antes daqui. O tipo
+ * garante isso — se alguém remover o desvio, o switch para de compilar. */
+async function loadEntity(entity: Exclude<EntityKey, 'clientes'>): Promise<RegistryRecord[]> {
   switch (entity) {
     case 'destinos': return (await destinos.list()).map((item) => ({ ...item }));
     case 'paradas': return (await paradas.list()).map((item) => ({ ...item }));
@@ -84,7 +104,6 @@ async function loadEntity(entity: EntityKey): Promise<RegistryRecord[]> {
     case 'horarios': return (await horarios.list()).map((item) => ({ ...item }));
     case 'veiculos': return (await veiculos.list()).map((item) => ({ ...item, categoria_label: ({ executivo: 'Executivo', escolar: 'Escolar', carro_7_lugares: 'Carro 7 lugares' } as Record<string, string>)[item.categoria] }));
     case 'motoristas': return (await motoristas.list()).map((item) => ({ ...item }));
-    case 'clientes': return (await clientes.list()).map((item) => ({ ...item }));
     case 'vinculos': return (await vinculos.list()).map((item) => ({ ...item }));
   }
 }

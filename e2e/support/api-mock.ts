@@ -20,6 +20,31 @@ export interface ApiMock {
   restoreProtectedRoutes(): void;
   /** Query strings recebidas em `GET /reservas/`, na ordem, para afirmar o que o front pediu. */
   bookingRequests: string[];
+  /** Query strings recebidas em `GET /clientes/`, na ordem. */
+  clienteRequests: string[];
+}
+
+export interface MockCliente {
+  id: number;
+  nome: string;
+  cpf: string;
+  telefone: string;
+  data_nasc: string;
+  foto: string;
+}
+
+export function makeClientes(total: number): MockCliente[] {
+  return Array.from({ length: total }, (_, index) => {
+    const id = total - index;
+    return {
+      id,
+      nome: `Cliente ${id}`,
+      cpf: String(30000000000 + id),
+      telefone: `8299999${String(id).padStart(4, '0')}`,
+      data_nasc: '2002-08-10',
+      foto: '',
+    };
+  });
 }
 
 export interface MockReserva {
@@ -82,12 +107,14 @@ function unauthorized(route: Route) {
  */
 export async function mockApi(
   page: Page,
-  options: { authenticated?: boolean; reservas?: MockReserva[] } = {},
+  options: { authenticated?: boolean; reservas?: MockReserva[]; clientes?: MockCliente[] } = {},
 ): Promise<ApiMock> {
   let authenticated = options.authenticated ?? false;
   let protectedRoutesFail = false;
   const allBookings = options.reservas ?? [];
   const bookingRequests: string[] = [];
+  const allClientes = options.clientes ?? [];
+  const clienteRequests: string[] = [];
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -162,6 +189,35 @@ export async function mockApi(
     if (path === '/viagens/') {
       return json(route, { items: [], has_more: false });
     }
+    if (path === '/clientes/resumo') {
+      return json(route, { total: allClientes.length });
+    }
+    if (path === '/clientes/') {
+      clienteRequests.push(url.search);
+
+      const busca = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+      // Igual ao backend: termo com letra nao dispara a busca por documento.
+      const digitos = /\p{L}/u.test(busca) ? '' : busca.replace(/\D/g, '');
+
+      const matching = allClientes.filter((item) => {
+        if (!busca) return true;
+        if (item.nome.toLowerCase().includes(busca)) return true;
+        if (item.telefone.includes(busca)) return true;
+        return digitos !== '' && item.cpf.includes(digitos);
+      });
+
+      const offset = Number(atob(url.searchParams.get('cursor') ?? '') || 0);
+      const slice = matching.slice(offset, offset + limit);
+      const next = offset + slice.length;
+      const hasMore = next < matching.length;
+
+      return json(route, {
+        items: slice,
+        has_more: hasMore,
+        ...(hasMore ? { next_cursor: btoa(String(next)) } : {}),
+      });
+    }
 
     // Listagem paginada por cursor: aplica busca, intervalo de data e recorte,
     // como o backend faz, para o teste exercitar o fluxo de verdade.
@@ -207,5 +263,6 @@ export async function mockApi(
       protectedRoutesFail = false;
     },
     bookingRequests,
+    clienteRequests,
   };
 }

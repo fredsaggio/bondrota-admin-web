@@ -55,7 +55,7 @@ export function DashboardPage() {
         <>
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric icon={CalendarClock} label="Viagens hoje" value={String(resource.data.tripSummary.hoje_total)} detail={`${resource.data.tripSummary.hoje_em_andamento} em andamento`} tone="blue" />
-            <Metric icon={UsersRound} label="Reservas confirmadas" value={String(metrics.activeBookings)} detail={`${resource.data.clientItems.length} clientes cadastrados`} tone="green" />
+            <Metric icon={UsersRound} label="Reservas confirmadas" value={String(metrics.activeBookings)} detail={`${resource.data.clientSummary.total} clientes cadastrados`} tone="green" />
             <Metric icon={BusFront} label="Frota disponível" value={`${metrics.activeFleet}/${resource.data.vehicleItems.length}`} detail={`${resource.data.vehicleItems.filter((item) => item.status === 'manutencao').length} em manutenção`} tone="amber" />
             <Metric icon={AlertTriangle} label="Falhas pendentes" value={String(resource.data.failures.length)} detail={resource.data.failures.length ? 'Aguardando nova tentativa' : 'Processamento saudável'} tone={resource.data.failures.length ? 'red' : 'green'} />
           </section>

@@ -5,8 +5,10 @@ import { Edit3, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog, EmptyState, ErrorState, LoadingRows, Modal, Notice, PageHeader, SearchField } from '@/shared/presentation/components/ui';
 import { RegistryForm } from '@/features/registrations/presentation/registry-form';
 import { useResource } from '@/shared/application/use-resource';
-import { loadRegistry, removeRegistryRecord, saveRegistryRecord } from '@/features/registrations/application/manage-registry';
-import type { EntityKey, RegistryPageData, RegistryRecord } from '@/features/registrations/domain/registry';
+import { useCursorList } from '@/shared/application/use-cursor-list';
+import { useDebouncedValue } from '@/shared/application/use-debounced-value';
+import { loadRegistryRecords, loadRegistryReferences, PAGINATED_ENTITIES, removeRegistryRecord, saveRegistryRecord } from '@/features/registrations/application/manage-registry';
+import type { EntityKey, RegistryReferences, RegistryRecord } from '@/features/registrations/domain/registry';
 
 interface EntityDefinition {
   key: EntityKey;
@@ -42,24 +44,36 @@ export function RegistrationsPage() {
   const [deleteError, setDeleteError] = useState('');
   const [notice, setNotice] = useState('');
   const definition = entities.find((item) => item.key === active)!;
+  const isPaginated = PAGINATED_ENTITIES.has(active);
 
-  const loader = useCallback(() => loadRegistry(active), [active]);
-  const resource = useResource<RegistryPageData>(loader);
+  // Na aba paginada a busca vai ao servidor, então espera o usuário parar de
+  // digitar. Nas demais, o filtro é local e o termo cru responde na hora.
+  const debouncedSearch = useDebouncedValue(search);
+  const recordsLoader = useCallback(
+    (cursor?: string) => loadRegistryRecords(active, { cursor, busca: isPaginated ? debouncedSearch : undefined }),
+    [active, debouncedSearch, isPaginated],
+  );
+  const records = useCursorList<RegistryRecord>(recordsLoader);
+
+  const referencesLoader = useCallback(() => loadRegistryReferences(active), [active]);
+  const references = useResource<RegistryReferences>(referencesLoader);
 
   const filtered = useMemo(() => {
-    const records = resource.data?.records ?? [];
+    // A aba paginada já vem filtrada do servidor; refiltrar aqui esconderia
+    // resultados legítimos que não batem com as colunas exibidas.
+    if (isPaginated) return records.items;
     const query = search.trim().toLocaleLowerCase('pt-BR');
-    if (!query) return records;
+    if (!query) return records.items;
     // Busca só nas colunas realmente visíveis na tabela (+ o #id, sempre mostrado).
     // JSON.stringify do registro inteiro batia até com nomes de campo internos.
-    return records.filter((record) => {
+    return records.items.filter((record) => {
       const haystack = [String(record.id), ...definition.columns.map((column) => {
         const raw = record[column.key];
         return raw == null ? '' : String(raw);
       })].join(' ').toLocaleLowerCase('pt-BR');
       return haystack.includes(query);
     });
-  }, [resource.data, search, definition]);
+  }, [definition, isPaginated, records.items, search]);
 
   function changeEntity(key: EntityKey) {
     setActive(key);
@@ -75,7 +89,7 @@ export function RegistrationsPage() {
       setEditing(undefined);
       const salvo = definition.genero === 'f' ? 'salva' : 'salvo';
       setNotice(`${definition.singular[0].toUpperCase()}${definition.singular.slice(1)} ${salvo} com sucesso.`);
-      await resource.reload();
+      await records.reload();
     } catch (reason) {
       setFormError(reason instanceof Error ? reason.message : 'Não foi possível salvar.');
     } finally {
@@ -91,7 +105,7 @@ export function RegistrationsPage() {
       await removeRegistryRecord(active, deleting);
       setDeleting(null);
       setNotice('Registro removido com sucesso.');
-      await resource.reload();
+      await records.reload();
     } catch (reason) {
       // O diálogo continua aberto para exibir o motivo. Uma exclusão recusada por
       // uso do registro (409) é o caso mais comum e precisa ficar visível.
@@ -116,17 +130,24 @@ export function RegistrationsPage() {
 
       <section className="panel overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-[#e4e9ef] p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="text-sm font-bold">{definition.label}</h2><p className="mt-1 text-xs text-slate-500">{resource.data?.records.length ?? 0} registros</p></div>
+          <div><h2 className="text-sm font-bold">{definition.label}</h2><p className="mt-1 text-xs text-slate-500">{records.items.length} registro(s){isPaginated && records.hasMore ? ' · há mais' : ''}</p></div>
           <SearchField value={search} onChange={setSearch} placeholder={`Pesquisar em ${definition.label.toLowerCase()}`} />
         </div>
-        {resource.loading ? <LoadingRows /> : resource.error ? <ErrorState message={resource.error} retry={resource.reload} /> : filtered.length === 0 ? <EmptyState /> : (
+        {records.loading ? <LoadingRows /> : records.error ? <ErrorState message={records.error} retry={records.reload} /> : filtered.length === 0 ? <EmptyState /> : (
           <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th>{definition.columns.map((column) => <th key={column.key}>{column.label}</th>)}<th className="w-24">Ações</th></tr></thead><tbody>
             {filtered.map((record) => <tr key={record.id}><td className="font-semibold">{record.id}</td>{definition.columns.map((column) => <td key={column.key}>{renderCell(column.key, record[column.key])}</td>)}<td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8" onClick={() => { setEditing(record); setFormError(''); }} title="Editar"><Edit3 size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" onClick={() => { setDeleting(record); setDeleteError(''); }} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}
           </tbody></table></div>
         )}
+        {records.hasMore && !records.loading && (
+          <div className="border-t border-[#e4e9ef] p-4 text-center">
+            <button className="btn btn-secondary" disabled={records.loadingMore} onClick={() => void records.loadMore()}>
+              {records.loadingMore ? 'Carregando...' : 'Carregar mais'}
+            </button>
+          </div>
+        )}
       </section>
 
-      {editing !== undefined && resource.data && <Modal title={editing ? `Editar ${definition.singular}` : newLabel(definition)} description="Os campos marcados com * são obrigatórios." onClose={() => setEditing(undefined)} wide={active === 'rotas'}><RegistryForm entity={active} record={editing} references={resource.data.references} busy={busy} error={formError} onSubmit={save} onCancel={() => setEditing(undefined)} /></Modal>}
+      {editing !== undefined && references.data && <Modal title={editing ? `Editar ${definition.singular}` : newLabel(definition)} description="Os campos marcados com * são obrigatórios." onClose={() => setEditing(undefined)} wide={active === 'rotas'}><RegistryForm entity={active} record={editing} references={references.data} busy={busy} error={formError} onSubmit={save} onCancel={() => setEditing(undefined)} /></Modal>}
       {deleting && <ConfirmDialog title={`Excluir ${definition.singular}`} message="Esta ação é permanente e pode ser recusada caso o registro esteja sendo usado por outra entidade." busy={busy} error={deleteError} onClose={() => { setDeleting(null); setDeleteError(''); }} onConfirm={() => void remove()} />}
     </div>
   );

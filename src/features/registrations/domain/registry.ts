@@ -1,4 +1,4 @@
-import type { Cliente, Destino, Parada, RotaInterna } from '@/features/registrations/domain/models';
+import type { Destino, Parada, RotaInterna } from '@/features/registrations/domain/models';
 
 export type EntityKey = 'destinos' | 'paradas' | 'rotas' | 'horarios' | 'veiculos' | 'motoristas' | 'clientes' | 'vinculos';
 
@@ -11,7 +11,6 @@ export interface RegistryReferences {
   paradas: Parada[];
   destinos: Destino[];
   rotas: RotaInterna[];
-  clientes: Cliente[];
 }
 
 export interface RegistryPageData {

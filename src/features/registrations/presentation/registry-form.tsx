@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent, type MouseEvent } from 'react';
 import { ArrowDown, ArrowUp, Eye, FileUp, Plus, Trash2 } from 'lucide-react';
-import { municipios, storage } from '@/features/registrations/infrastructure/registrations-api';
+import { clientes, municipios, storage } from '@/features/registrations/infrastructure/registrations-api';
+import { AsyncCombobox } from '@/shared/presentation/components/async-combobox';
 import type { Municipio, Parada } from '@/features/registrations/domain/models';
 import type { EntityKey, RegistryRecord, RegistryReferences } from '@/features/registrations/domain/registry';
 
@@ -24,6 +25,13 @@ const value = (record: RegistryRecord | null, key: string) => {
   const current = record?.[key];
   return current == null ? '' : String(current);
 };
+
+/** Opções do combobox de cliente. Definida fora do componente para manter a
+ * identidade estável entre renders — o combobox reage a mudanças dela. */
+async function searchClientes(term: string) {
+  const page = await clientes.page({ q: term, limit: 20 });
+  return page.items.map((item) => ({ value: String(item.id), label: `${item.nome} · ${item.cpf}` }));
+}
 
 export function RegistryForm({ entity, record, references, busy, error, onSubmit, onCancel }: Props) {
   const [routeStops, setRouteStops] = useState<number[]>(() => routeStopIds(record));
@@ -93,7 +101,16 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
         </>}
 
         {entity === 'vinculos' && <>
-          <Select label="Cliente" name="cliente_id" defaultValue={value(record, 'cliente_id')} options={references.clientes.map((item) => [String(item.id), `${item.nome} · ${item.cpf}`])} required disabled={Boolean(record)} />
+          <AsyncCombobox
+            label="Cliente"
+            name="cliente_id"
+            search={searchClientes}
+            defaultValue={value(record, 'cliente_id')}
+            defaultLabel={value(record, 'cliente_nome')}
+            required
+            disabled={Boolean(record)}
+            placeholder="Buscar por nome, CPF ou telefone"
+          />
           <Select label="Tipo" name="tipo" defaultValue={value(record, 'tipo') || 'estudante'} options={[["estudante", "Estudante"], ["estagio", "Estágio"]]} required />
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <Select label="Destino" name="destino_id" defaultValue={value(record, 'destino_id')} options={references.destinos.map((item) => [String(item.id), item.nome])} required />
