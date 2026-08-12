@@ -163,6 +163,7 @@ function renderCell(key: string, raw: unknown) {
   if (key === 'tipo') return <span className="capitalize">{value}</span>;
   if (key === 'capacidade') return `${value} lugares`;
   if (key === 'cpf') return formatCpf(value);
+  if (key === 'telefone') return formatTelefone(value);
   return <span className="block max-w-[340px] truncate" title={value}>{value}</span>;
 }
 
@@ -170,4 +171,11 @@ function formatCpf(value: string) {
   const digits = value.replace(/\D/g, '');
   if (digits.length !== 11) return value;
   return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+function formatTelefone(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) return digits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  if (digits.length === 11) return digits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  return value;
 }

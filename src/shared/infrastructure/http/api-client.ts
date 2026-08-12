@@ -24,6 +24,9 @@ function friendlyMessage(status: number, raw: string) {
     // Vem com 403 na troca de senha. Sem esta entrada cairia na mensagem genérica
     // de permissão logo abaixo, que não diz o que a pessoa precisa corrigir.
     'senha atual incorreta': 'A senha atual está incorreta.',
+    'nome must contain only letters and spaces': 'O nome deve conter apenas letras e espaços.',
+    'cpf must have 11 digits': 'O CPF deve ter 11 dígitos.',
+    'telefone must have 10 or 11 digits with a valid ddd': 'O telefone deve ter DDD e 8 ou 9 dígitos.',
   };
   const normalized = raw.trim().toLowerCase();
   if (known[normalized]) return known[normalized];

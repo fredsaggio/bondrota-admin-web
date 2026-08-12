@@ -26,11 +26,42 @@ const value = (record: RegistryRecord | null, key: string) => {
   return current == null ? '' : String(current);
 };
 
+const onlyDigits = (raw: string) => raw.replace(/\D/g, '');
+
+/** Formata CPF conforme os dígitos chegam: 000.000.000-00. */
+function formatCPF(raw: string) {
+  const digits = onlyDigits(raw).slice(0, 11);
+  const p1 = digits.slice(0, 3);
+  const p2 = digits.slice(3, 6);
+  const p3 = digits.slice(6, 9);
+  const p4 = digits.slice(9, 11);
+  let out = p1;
+  if (p2) out += `.${p2}`;
+  if (p3) out += `.${p3}`;
+  if (p4) out += `-${p4}`;
+  return out;
+}
+
+/** Formata telefone com DDD: fixo (00) 0000-0000 ou celular (00) 00000-0000.
+ * O agrupamento após o DDD só decide entre 4 ou 5 dígitos quando o número já
+ * tem 11 dígitos — até lá assume fixo, e o texto realinha se virar celular. */
+function formatTelefone(raw: string) {
+  const digits = onlyDigits(raw).slice(0, 11);
+  if (!digits) return '';
+  const ddd = digits.slice(0, 2);
+  if (digits.length <= 2) return `(${ddd}`;
+  const rest = digits.slice(2);
+  const splitAt = digits.length <= 10 ? 4 : 5;
+  const first = rest.slice(0, splitAt);
+  const second = rest.slice(splitAt);
+  return second ? `(${ddd}) ${first}-${second}` : `(${ddd}) ${first}`;
+}
+
 /** Opções do combobox de cliente. Definida fora do componente para manter a
  * identidade estável entre renders — o combobox reage a mudanças dela. */
 async function searchClientes(term: string) {
   const page = await clientes.page({ q: term, limit: 20 });
-  return page.items.map((item) => ({ value: String(item.id), label: `${item.nome} · ${item.cpf}` }));
+  return page.items.map((item) => ({ value: String(item.id), label: `${item.nome} · ${formatCPF(item.cpf)}` }));
 }
 
 export function RegistryForm({ entity, record, references, busy, error, onSubmit, onCancel }: Props) {
@@ -82,9 +113,9 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
         </>}
 
         {entity === 'motoristas' && <>
-          <Field label="Nome completo" name="nome" defaultValue={value(record, 'nome')} required span />
-          {!record && <><Field label="CPF" name="cpf" defaultValue="" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
-          <Field label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} />
+          <PersonNameField label="Nome completo" name="nome" defaultValue={value(record, 'nome')} required span />
+          {!record && <><MaskedField label="CPF" name="cpf" format={formatCPF} maxLength={14} placeholder="000.000.000-00" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
+          <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
           <Field label="Data de nascimento" name="data_nasc" type="date" defaultValue={value(record, 'data_nasc')} required />
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <MunicipioField defaultMunicipioId={Number(record?.municipio_trabalho_id ?? 0)} name="municipio_trabalho_id" />
@@ -93,9 +124,9 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
         </>}
 
         {entity === 'clientes' && <>
-          <Field label="Nome completo" name="nome" defaultValue={value(record, 'nome')} required span />
-          {!record && <><Field label="CPF" name="cpf" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
-          <Field label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} />
+          <PersonNameField label="Nome completo" name="nome" defaultValue={value(record, 'nome')} required span />
+          {!record && <><MaskedField label="CPF" name="cpf" format={formatCPF} maxLength={14} placeholder="000.000.000-00" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
+          <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
           <Field label="Data de nascimento" name="data_nasc" type="date" defaultValue={value(record, 'data_nasc')} required />
           <UploadField label="Foto" bucket="fotos" folder="clientes" accept="image/*" current={photo} onUploaded={setPhoto} />
         </>}
@@ -134,6 +165,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
 function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord | null, routeStops: number[], photo: string, comprovante: string): Record<string, unknown> {
   const text = (name: string) => String(data.get(name) ?? '').trim();
   const number = (name: string) => Number(data.get(name));
+  const digits = (name: string) => onlyDigits(String(data.get(name) ?? ''));
   switch (entity) {
     case 'destinos': return { nome: text('nome'), rua: text('rua'), municipio_id: number('municipio_id'), latitude: number('latitude'), longitude: number('longitude') };
     case 'paradas': return { nome: text('nome'), latitude: number('latitude'), longitude: number('longitude') };
@@ -144,14 +176,58 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
       const capacidade = categoria === 'executivo' ? 46 : categoria === 'escolar' ? 24 : 7;
       return { placa: text('placa').toUpperCase(), modelo: text('modelo'), categoria, capacidade, status: text('status'), ar_condicionado: data.has('ar_condicionado'), banheiro: data.has('banheiro'), persiana: data.has('persiana'), luz_leitura: data.has('luz_leitura'), tomada: data.has('tomada') };
     }
-    case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: text('cpf'), senha: text('senha') }), telefone: text('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: photo };
-    case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: text('cpf'), senha: text('senha') }), telefone: text('telefone'), data_nasc: text('data_nasc'), foto: photo };
+    case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: photo };
+    case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), foto: photo };
     case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante };
   }
 }
 
 function Field({ label, name, type = 'text', step, defaultValue, required, span }: { label: string; name: string; type?: string; step?: string; defaultValue?: string; required?: boolean; span?: boolean }) {
   return <label className={span ? 'sm:col-span-2' : ''}><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><input className="field" name={name} type={type} step={step} defaultValue={defaultValue} required={required} /></label>;
+}
+
+/** Nome de pessoa (cliente/motorista): bloqueia dígitos e símbolos ao digitar.
+ * Nomes de lugar (destino, parada) usam o Field normal, que não tem essa
+ * restrição — números fazem parte de endereços legítimos. */
+function PersonNameField({ label, name, defaultValue, required, span }: { label: string; name: string; defaultValue?: string; required?: boolean; span?: boolean }) {
+  return (
+    <label className={span ? 'sm:col-span-2' : ''}>
+      <span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span>
+      <input
+        className="field"
+        name={name}
+        type="text"
+        defaultValue={defaultValue}
+        required={required}
+        onChange={(event) => {
+          const clean = event.target.value.replace(/[^\p{L}\s'-]/gu, '');
+          if (clean !== event.target.value) event.target.value = clean;
+        }}
+      />
+    </label>
+  );
+}
+
+/** CPF e telefone: mostra a máscara pro admin, mas quem envia pro backend
+ * (buildPayload) limpa a pontuação — lá o campo é guardado só com dígitos. */
+function MaskedField({ label, name, defaultValue, required, format, placeholder, maxLength }: { label: string; name: string; defaultValue?: string; required?: boolean; format(raw: string): string; placeholder?: string; maxLength: number }) {
+  const [text, setText] = useState(() => format(defaultValue ?? ''));
+  return (
+    <label>
+      <span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span>
+      <input
+        className="field"
+        name={name}
+        type="text"
+        inputMode="numeric"
+        placeholder={placeholder}
+        maxLength={maxLength}
+        value={text}
+        onChange={(event) => setText(format(event.target.value))}
+        required={required}
+      />
+    </label>
+  );
 }
 
 function Select({ label, name, options, defaultValue, required, disabled }: { label: string; name: string; options: string[][]; defaultValue?: string; required?: boolean; disabled?: boolean }) {
