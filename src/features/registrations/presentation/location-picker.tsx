@@ -1,9 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import { config } from '@/shared/infrastructure/config/config-api';
-import { findMunicipioBounds, type AreaBounds } from '@/features/registrations/infrastructure/geocoding';
+import { useDebouncedValue } from '@/shared/application/use-debounced-value';
+import { findMunicipioBounds, searchAddress, type AddressResult, type AreaBounds } from '@/features/registrations/infrastructure/geocoding';
 import type { Point } from '@/features/registrations/presentation/location-map';
 
 const LocationMap = dynamic(() => import('@/features/registrations/presentation/location-map'), {
@@ -64,9 +66,17 @@ export function LocationPicker({ defaultLatitude, defaultLongitude, municipio }:
     setLongitude(next.longitude.toFixed(6));
   };
 
+  const chooseAddress = (result: AddressResult) => {
+    pick({ latitude: result.latitude, longitude: result.longitude });
+    // Enquadra pela área do resultado quando ela existe; um endereço exato traz
+    // caixa minúscula, e o `fitBounds` já resolve o zoom sozinho.
+    if (result.bounds) setFocus(result.bounds);
+  };
+
   return (
     <div className="sm:col-span-2">
       <span className="field-label">Localização <b className="text-red-500">*</b></span>
+      <AddressSearch onChoose={chooseAddress} />
       {center ? <LocationMap point={point} center={center} focus={focus} onPick={pick} /> : <MapPlaceholder />}
       <p className="mt-1.5 text-xs text-slate-500">
         Clique no mapa para marcar o ponto ou arraste o marcador. Se já tiver as coordenadas, dá para digitar abaixo.
@@ -87,6 +97,102 @@ export function LocationPicker({ defaultLatitude, defaultLongitude, municipio }:
           />
         </label>
       </div>
+    </div>
+  );
+}
+
+/** Termo curto demais gera resultado inútil e gasta a cota do Nominatim à toa. */
+const MIN_TERM = 3;
+
+/**
+ * Busca de endereço para chegar perto do ponto sem navegar o mapa na mão.
+ *
+ * O debounce é mais longo que o padrão do projeto porque aqui o destino é o
+ * Nominatim público, que pede no máximo ~1 requisição por segundo — a busca do
+ * município, por disparar num `<select>`, não tem esse problema.
+ */
+function AddressSearch({ onChoose }: { onChoose(result: AddressResult): void }) {
+  const [term, setTerm] = useState('');
+  const [results, setResults] = useState<AddressResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const listId = useId();
+
+  const debounced = useDebouncedValue(term, 600);
+  const ready = debounced.trim().length >= MIN_TERM;
+
+  useEffect(() => {
+    if (!ready) return;
+    const controller = new AbortController();
+    // setTimeout tira o setState do corpo síncrono do efeito, mesma convenção
+    // de useResource e MunicipioField.
+    const timeout = window.setTimeout(() => {
+      setSearching(true);
+      void searchAddress(debounced.trim(), controller.signal)
+        .then((values) => { if (!controller.signal.aborted) { setResults(values); setOpen(true); } })
+        .finally(() => { if (!controller.signal.aborted) setSearching(false); });
+    }, 0);
+    return () => { controller.abort(); window.clearTimeout(timeout); };
+  }, [debounced, ready]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  return (
+    <div className="relative mb-2" ref={container}>
+      <div className="relative">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          className="field !pl-9"
+          type="search"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-label="Buscar endereço"
+          autoComplete="off"
+          placeholder="Buscar endereço para centralizar o mapa"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          onFocus={() => { if (results.length > 0) setOpen(true); }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setOpen(false);
+            // O formulário inteiro seria enviado; aqui Enter é só "buscar".
+            if (event.key === 'Enter') event.preventDefault();
+          }}
+        />
+      </div>
+
+      {/* Enquanto o termo é curto o resultado anterior fica em memória mas some
+          da tela, em vez de precisar de um setState só para limpá-lo. */}
+      {open && ready && (
+        // Precisa passar de 1000: a lista cai por cima do mapa, e o Leaflet põe
+        // os cantos de controle (`.leaflet-top`) exatamente nesse valor. Com
+        // 1000 cravado dá empate, e aí decide a ordem no DOM — o mapa vem
+        // depois, então os botões de zoom apareceriam por cima do texto.
+        <ul id={listId} role="listbox" className="absolute z-[1100] mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-[#dfe5ed] bg-white shadow-lg">
+          {searching && <li className="px-3 py-2 text-xs text-slate-400">Buscando...</li>}
+          {!searching && results.length === 0 && <li className="px-3 py-2 text-xs text-slate-400">Nenhum endereço encontrado</li>}
+          {!searching && results.map((result) => (
+            <li key={result.id}>
+              <button
+                type="button" role="option" aria-selected={false}
+                className="block w-full px-3 py-2 text-left text-xs leading-5 hover:bg-slate-50"
+                onClick={() => { onChoose(result); setOpen(false); }}
+              >
+                {result.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

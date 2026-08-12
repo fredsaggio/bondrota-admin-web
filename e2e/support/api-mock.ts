@@ -179,21 +179,46 @@ const BLANK_TILE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA
 export const MOCK_MUNICIPIO_BOUNDS = ['-9.8820000', '-9.6354476', '-36.7544638', '-36.5410000'];
 
 /**
+ * Resultados da busca livre de endereco. Dois trechos da mesma avenida, como o
+ * Nominatim realmente devolve — e por isso o painel mostra uma lista em vez de
+ * aceitar o primeiro.
+ */
+export const MOCK_ENDERECOS = [
+  {
+    place_id: 101,
+    display_name: 'Avenida Fernandes Lima, Gruta de Lourdes, Maceió, Alagoas, Brasil',
+    lat: '-9.6210292',
+    lon: '-35.7390682',
+    boundingbox: ['-9.6220000', '-9.6200000', '-35.7400000', '-35.7380000'],
+  },
+  {
+    place_id: 102,
+    display_name: 'Avenida Fernandes Lima, Pitanguinha, Maceió, Alagoas, Brasil',
+    lat: '-9.6354560',
+    lon: '-35.7362840',
+    boundingbox: ['-9.6360000', '-9.6350000', '-35.7370000', '-35.7355000'],
+  },
+];
+
+/**
  * A suite mocada roda offline e em todo PR. Os mapas do painel buscariam tiles
- * do OpenStreetMap e o contorno do municipio no Nominatim; deixar isso sair
+ * do OpenStreetMap e dois tipos de geocoding no Nominatim; deixar isso sair
  * para a rede real tornaria os testes lentos e instaveis, e os quebraria em
- * qualquer maquina sem internet. Ambos viram resposta fixa aqui.
+ * qualquer maquina sem internet. Tudo vira resposta fixa aqui.
  */
 async function stubMapNetwork(page: Page) {
   await page.route(/tile\.openstreetmap\.org/, (route) =>
     route.fulfill({ status: 200, contentType: 'image/png', body: BLANK_TILE }));
 
-  await page.route(/nominatim\.openstreetmap\.org/, (route) =>
-    route.fulfill({
+  await page.route(/nominatim\.openstreetmap\.org/, (route) => {
+    // `q` e a busca livre de endereco; `city` e a estruturada do municipio.
+    const busca = new URL(route.request().url()).searchParams.get('q');
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([{ boundingbox: MOCK_MUNICIPIO_BOUNDS }]),
-    }));
+      body: JSON.stringify(busca ? MOCK_ENDERECOS : [{ boundingbox: MOCK_MUNICIPIO_BOUNDS }]),
+    });
+  });
 }
 
 /**
