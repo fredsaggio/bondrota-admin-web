@@ -31,7 +31,7 @@ const MUNICIPIO_ID_FIELDS: Partial<Record<EntityKey, string>> = {
 };
 
 /** Entidades cuja listagem é paginada pelo servidor. */
-export const PAGINATED_ENTITIES: ReadonlySet<EntityKey> = new Set<EntityKey>(['clientes']);
+export const PAGINATED_ENTITIES: ReadonlySet<EntityKey> = new Set<EntityKey>(['clientes', 'vinculos']);
 
 export async function loadRegistryReferences(entity: EntityKey): Promise<RegistryReferences> {
   const needed = requiredReferences[entity];
@@ -57,6 +57,10 @@ export async function loadRegistryRecords(
 ): Promise<CursorPage<RegistryRecord>> {
   if (entity === 'clientes') {
     const page = await clientes.page({ cursor: params.cursor, q: params.busca });
+    return { items: page.items.map((item) => ({ ...item })), next_cursor: page.next_cursor, has_more: page.has_more };
+  }
+  if (entity === 'vinculos') {
+    const page = await vinculos.page({ cursor: params.cursor, q: params.busca });
     return { items: page.items.map((item) => ({ ...item })), next_cursor: page.next_cursor, has_more: page.has_more };
   }
 
@@ -94,9 +98,10 @@ async function attachMunicipioNames(entity: EntityKey, records: RegistryRecord[]
   });
 }
 
-/** Clientes fica de fora: a listagem dele é paginada e tratada antes daqui. O tipo
- * garante isso — se alguém remover o desvio, o switch para de compilar. */
-async function loadEntity(entity: Exclude<EntityKey, 'clientes'>): Promise<RegistryRecord[]> {
+/** Clientes e vínculos ficam de fora: as listagens deles são paginadas e tratadas
+ * antes daqui. O tipo garante isso — se alguém remover o desvio, o switch para de
+ * compilar. */
+async function loadEntity(entity: Exclude<EntityKey, 'clientes' | 'vinculos'>): Promise<RegistryRecord[]> {
   switch (entity) {
     case 'destinos': return (await destinos.list()).map((item) => ({ ...item }));
     case 'paradas': return (await paradas.list()).map((item) => ({ ...item }));
@@ -104,7 +109,6 @@ async function loadEntity(entity: Exclude<EntityKey, 'clientes'>): Promise<Regis
     case 'horarios': return (await horarios.list()).map((item) => ({ ...item }));
     case 'veiculos': return (await veiculos.list()).map((item) => ({ ...item, categoria_label: ({ executivo: 'Executivo', escolar: 'Escolar', carro_7_lugares: 'Carro 7 lugares' } as Record<string, string>)[item.categoria] }));
     case 'motoristas': return (await motoristas.list()).map((item) => ({ ...item }));
-    case 'vinculos': return (await vinculos.list()).map((item) => ({ ...item }));
   }
 }
 

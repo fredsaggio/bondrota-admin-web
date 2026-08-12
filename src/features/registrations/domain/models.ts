@@ -31,7 +31,7 @@ export interface Vinculo {
 }
 
 /** Item de `GET /vinculos/`, a listagem administrativa que já resolve o nome do cliente. */
-export interface VinculoComCliente extends Vinculo { cliente_nome: string }
+export interface VinculoComCliente extends Vinculo { cliente_nome: string; destino_nome: string }
 
 export interface Cliente {
   id: number; nome: string; cpf: string; telefone: string; data_nasc: string; foto: string; vinculos?: Vinculo[];

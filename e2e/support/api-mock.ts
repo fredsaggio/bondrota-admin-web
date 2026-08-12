@@ -22,6 +22,73 @@ export interface ApiMock {
   bookingRequests: string[];
   /** Query strings recebidas em `GET /clientes/`, na ordem. */
   clienteRequests: string[];
+  /** Query strings recebidas em `GET /vinculos/`, na ordem. */
+  vinculoRequests: string[];
+  /** Query strings recebidas em `GET /viagens/`, na ordem. */
+  viagemRequests: string[];
+}
+
+export interface MockViagem {
+  viagem: { id: number; ciclo_viagem_id: number; sentido: string; status: string; created_at: string; updated_at: string };
+  ciclo: {
+    id: number; data_viagem: string; turno: string; municipio_destino_id: number; rota_interna_id: number;
+    veiculo_id: number; motorista_id: number; status: string; expires_at: string; created_at: string; updated_at: string;
+  };
+  municipio_nome: string;
+  veiculo_placa: string;
+}
+
+/** Viagens ativas em ordem crescente de data, como o monitoramento pede. */
+export function makeViagens(total: number): MockViagem[] {
+  return Array.from({ length: total }, (_, index) => {
+    const id = index + 1;
+    const day = String((index % 28) + 1).padStart(2, '0');
+    return {
+      viagem: { id, ciclo_viagem_id: id, sentido: 'ida', status: 'programada', created_at: '', updated_at: '' },
+      ciclo: {
+        id, data_viagem: `2026-09-${day}`, turno: 'NT', municipio_destino_id: 2704302, rota_interna_id: 1,
+        veiculo_id: 1, motorista_id: 1, status: 'planejado', expires_at: '', created_at: '', updated_at: '',
+      },
+      municipio_nome: 'Maceio',
+      veiculo_placa: 'ABC1D23',
+    };
+  });
+}
+
+export interface MockVinculo {
+  id: number;
+  cliente_id: number;
+  cliente_nome: string;
+  tipo: string;
+  turno: string;
+  destino_id: number;
+  destino_nome: string;
+  rota_interna_id: number;
+  curso: string;
+  comprovante: string;
+  validade: string;
+  horarios_fixos: Array<{ id: number; vinculo_id: number; dia_semana: number }>;
+}
+
+/** Nomes em ordem alfabetica, como a API ordena a listagem de vinculos. */
+export function makeVinculos(total: number): MockVinculo[] {
+  return Array.from({ length: total }, (_, index) => {
+    const id = index + 1;
+    return {
+      id,
+      cliente_id: 100 + id,
+      cliente_nome: `Cliente ${String(id).padStart(3, '0')}`,
+      tipo: 'estudante',
+      turno: 'NT',
+      destino_id: 1,
+      destino_nome: 'Campus Central',
+      rota_interna_id: 1,
+      curso: 'Computacao',
+      comprovante: '',
+      validade: '2030-12-31',
+      horarios_fixos: [1, 2, 3, 4, 5].map((dia) => ({ id: id * 10 + dia, vinculo_id: id, dia_semana: dia })),
+    };
+  });
 }
 
 export interface MockCliente {
@@ -107,7 +174,7 @@ function unauthorized(route: Route) {
  */
 export async function mockApi(
   page: Page,
-  options: { authenticated?: boolean; reservas?: MockReserva[]; clientes?: MockCliente[] } = {},
+  options: { authenticated?: boolean; reservas?: MockReserva[]; clientes?: MockCliente[]; vinculos?: MockVinculo[]; viagens?: MockViagem[] } = {},
 ): Promise<ApiMock> {
   let authenticated = options.authenticated ?? false;
   let protectedRoutesFail = false;
@@ -115,6 +182,10 @@ export async function mockApi(
   const bookingRequests: string[] = [];
   const allClientes = options.clientes ?? [];
   const clienteRequests: string[] = [];
+  const allVinculos = options.vinculos ?? [];
+  const vinculoRequests: string[] = [];
+  const allViagens = options.viagens ?? [];
+  const viagemRequests: string[] = [];
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -186,8 +257,60 @@ export async function mockApi(
         por_status: {}, por_turno: {}, hoje_total: 0, hoje_em_andamento: 0, proximas: [],
       });
     }
+    // Sem localizacao/rota calculada ainda. O catch-all abaixo responderia `[]`,
+    // que e truthy — o painel entraria no ramo "tem localizacao" e quebraria ao
+    // formatar velocidade. O front ja trata 404 como "ainda nao transmitiu".
+    if (/^\/viagens\/\d+\/(localizacao|rota-dinamica)$/.test(path)) {
+      return route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' });
+    }
+
     if (path === '/viagens/') {
-      return json(route, { items: [], has_more: false });
+      viagemRequests.push(url.search);
+
+      const busca = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+      const status = url.searchParams.getAll('status');
+
+      const matching = allViagens.filter((item) => {
+        if (status.length > 0 && !status.includes(item.viagem.status)) return false;
+        if (!busca) return true;
+        return [item.municipio_nome, item.veiculo_placa, item.viagem.status, item.ciclo.turno, item.viagem.sentido]
+          .join(' ').toLowerCase().includes(busca);
+      });
+
+      const offset = Number(atob(url.searchParams.get('cursor') ?? '') || 0);
+      const slice = matching.slice(offset, offset + limit);
+      const next = offset + slice.length;
+      const hasMore = next < matching.length;
+
+      return json(route, {
+        items: slice,
+        has_more: hasMore,
+        ...(hasMore ? { next_cursor: btoa(String(next)) } : {}),
+      });
+    }
+    if (path === '/vinculos/') {
+      vinculoRequests.push(url.search);
+
+      const busca = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+
+      const matching = allVinculos.filter((item) => {
+        if (!busca) return true;
+        return [item.cliente_nome, item.destino_nome, item.curso, item.tipo, item.turno]
+          .join(' ').toLowerCase().includes(busca);
+      });
+
+      const offset = Number(atob(url.searchParams.get('cursor') ?? '') || 0);
+      const slice = matching.slice(offset, offset + limit);
+      const next = offset + slice.length;
+      const hasMore = next < matching.length;
+
+      return json(route, {
+        items: slice,
+        has_more: hasMore,
+        ...(hasMore ? { next_cursor: btoa(String(next)) } : {}),
+      });
     }
     if (path === '/clientes/resumo') {
       return json(route, { total: allClientes.length });
@@ -264,5 +387,7 @@ export async function mockApi(
     },
     bookingRequests,
     clienteRequests,
+    vinculoRequests,
+    viagemRequests,
   };
 }

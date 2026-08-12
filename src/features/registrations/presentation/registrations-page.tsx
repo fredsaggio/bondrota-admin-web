@@ -27,7 +27,7 @@ const entities: EntityDefinition[] = [
   { key: 'veiculos', label: 'Veículos', singular: 'veículo', genero: 'm', columns: [{ key: 'placa', label: 'Placa' }, { key: 'modelo', label: 'Modelo' }, { key: 'categoria_label', label: 'Categoria' }, { key: 'capacidade', label: 'Capacidade' }, { key: 'status', label: 'Status' }] },
   { key: 'motoristas', label: 'Motoristas', singular: 'motorista', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'turno', label: 'Turno' }, { key: 'municipio_trabalho_id_nome', label: 'Cidade de trabalho' }] },
   { key: 'clientes', label: 'Clientes', singular: 'cliente', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'telefone', label: 'Telefone' }, { key: 'data_nasc', label: 'Nascimento' }] },
-  { key: 'vinculos', label: 'Vínculos', singular: 'vínculo', genero: 'm', columns: [{ key: 'cliente_nome', label: 'Cliente' }, { key: 'tipo', label: 'Tipo' }, { key: 'turno', label: 'Turno' }, { key: 'destino_id', label: 'Destino' }, { key: 'validade', label: 'Validade' }] },
+  { key: 'vinculos', label: 'Vínculos', singular: 'vínculo', genero: 'm', columns: [{ key: 'cliente_nome', label: 'Cliente' }, { key: 'tipo', label: 'Tipo' }, { key: 'turno', label: 'Turno' }, { key: 'destino_nome', label: 'Destino' }, { key: 'validade', label: 'Validade' }] },
 ];
 
 function newLabel(definition: EntityDefinition) {

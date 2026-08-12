@@ -60,8 +60,18 @@ export const rotasInternas = {
 };
 
 export const vinculos = {
-  /** Listagem administrativa de todos os vínculos, com o nome do cliente já resolvido. */
-  list: () => api<VinculoComCliente[]>('/vinculos/'),
+  /**
+   * Listagem administrativa paginada por cursor, com nome do cliente e do destino
+   * já resolvidos. Vínculo cresce junto com cliente e não é apagado pela retenção.
+   */
+  page: (params: { cursor?: string; limit?: number; q?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.cursor) query.set('cursor', params.cursor);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.q?.trim()) query.set('q', params.q.trim());
+    const suffix = query.toString();
+    return api<CursorPage<VinculoComCliente>>(`/vinculos/${suffix ? `?${suffix}` : ''}`);
+  },
   listByCliente: (clienteId: number) => api<Vinculo[]>(`/clientes/${clienteId}/vinculos/`),
   get: (clienteId: number, id: number) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`),
   create: (clienteId: number, payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/`, { method: 'POST', body: payload }),
