@@ -17,6 +17,7 @@ export const horarios = createRestCollection<HorarioTurno>('/horarios-turno-viag
 
 export const municipios = {
   listByUF: (uf: string) => api<Municipio[]>(`/municipios/?uf=${encodeURIComponent(uf)}`),
+  get: (codigoIbge: number) => api<Municipio>(`/municipios/${codigoIbge}`),
 };
 
 export const rotasInternas = {

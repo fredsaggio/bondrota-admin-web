@@ -18,12 +18,12 @@ interface EntityDefinition {
 }
 
 const entities: EntityDefinition[] = [
-  { key: 'destinos', label: 'Destinos', singular: 'destino', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'rua', label: 'Endereço' }, { key: 'municipio_id', label: 'Município IBGE' }] },
+  { key: 'destinos', label: 'Destinos', singular: 'destino', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'rua', label: 'Endereço' }, { key: 'municipio_id_nome', label: 'Município' }] },
   { key: 'paradas', label: 'Paradas', singular: 'parada', genero: 'f', columns: [{ key: 'nome', label: 'Nome' }, { key: 'latitude', label: 'Latitude' }, { key: 'longitude', label: 'Longitude' }] },
   { key: 'rotas', label: 'Rotas internas', singular: 'rota interna', genero: 'f', columns: [{ key: 'id', label: 'Rota' }, { key: 'paradas_resumo', label: 'Sequência de paradas' }] },
-  { key: 'horarios', label: 'Horários', singular: 'horário', genero: 'm', columns: [{ key: 'municipio_destino_id', label: 'Município IBGE' }, { key: 'turno', label: 'Turno' }, { key: 'horario_ida', label: 'Ida' }, { key: 'horario_volta', label: 'Volta' }] },
+  { key: 'horarios', label: 'Horários', singular: 'horário', genero: 'm', columns: [{ key: 'municipio_destino_id_nome', label: 'Município' }, { key: 'turno', label: 'Turno' }, { key: 'horario_ida', label: 'Ida' }, { key: 'horario_volta', label: 'Volta' }] },
   { key: 'veiculos', label: 'Veículos', singular: 'veículo', genero: 'm', columns: [{ key: 'placa', label: 'Placa' }, { key: 'modelo', label: 'Modelo' }, { key: 'categoria_label', label: 'Categoria' }, { key: 'capacidade', label: 'Capacidade' }, { key: 'status', label: 'Status' }] },
-  { key: 'motoristas', label: 'Motoristas', singular: 'motorista', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'turno', label: 'Turno' }, { key: 'municipio_trabalho_id', label: 'Cidade de trabalho' }] },
+  { key: 'motoristas', label: 'Motoristas', singular: 'motorista', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'turno', label: 'Turno' }, { key: 'municipio_trabalho_id_nome', label: 'Cidade de trabalho' }] },
   { key: 'clientes', label: 'Clientes', singular: 'cliente', genero: 'm', columns: [{ key: 'nome', label: 'Nome' }, { key: 'cpf', label: 'CPF' }, { key: 'telefone', label: 'Telefone' }, { key: 'data_nasc', label: 'Nascimento' }] },
   { key: 'vinculos', label: 'Vínculos', singular: 'vínculo', genero: 'm', columns: [{ key: 'cliente_nome', label: 'Cliente' }, { key: 'tipo', label: 'Tipo' }, { key: 'turno', label: 'Turno' }, { key: 'destino_id', label: 'Destino' }, { key: 'validade', label: 'Validade' }] },
 ];
@@ -141,5 +141,12 @@ function renderCell(key: string, raw: unknown) {
   if (key === 'turno') return <span className="badge badge-blue">{value}</span>;
   if (key === 'tipo') return <span className="capitalize">{value}</span>;
   if (key === 'capacidade') return `${value} lugares`;
+  if (key === 'cpf') return formatCpf(value);
   return <span className="block max-w-[340px] truncate" title={value}>{value}</span>;
+}
+
+function formatCpf(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 11) return value;
+  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 }

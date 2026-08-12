@@ -151,16 +151,35 @@ function MunicipioField({ defaultMunicipioId, name = 'municipio_id' }: { default
   const [items, setItems] = useState<Municipio[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+
+  // Ao editar um registro cujo município não é de AL, descobre a UF real antes de
+  // carregar a lista — sem isso o campo assumia AL sempre e mostrava só o código
+  // cru ("Município atual · IBGE 2611606") pra qualquer cidade de outro estado.
+  useEffect(() => {
+    if (!defaultMunicipioId) return;
+    let active = true;
+    municipios.get(defaultMunicipioId).then((found) => { if (active) setUF(found.uf); }).catch(() => {});
+    return () => { active = false; };
+  }, [defaultMunicipioId]);
+
   useEffect(() => {
     let active = true;
-    municipios.listByUF(uf)
-      .then((values) => { if (active) setItems(values); })
-      .catch(() => { if (active) { setItems([]); setLoadError(true); } })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    // setTimeout adia o setState pra fora do corpo síncrono do efeito, mesma
+    // convenção de useResource — evita a cascata de renders que o React acusa ao
+    // chamar setState direto na primeira execução do efeito.
+    const timeout = window.setTimeout(() => {
+      if (!active) return;
+      setLoading(true);
+      setLoadError(false);
+      municipios.listByUF(uf)
+        .then((values) => { if (active) setItems(values); })
+        .catch(() => { if (active) { setItems([]); setLoadError(true); } })
+        .finally(() => { if (active) setLoading(false); });
+    }, 0);
+    return () => { active = false; window.clearTimeout(timeout); };
   }, [uf]);
   const currentIsListed = items.some((item) => String(item.codigo_ibge) === municipioId);
-  return <div className="grid grid-cols-[88px_1fr] gap-2 sm:col-span-2"><label><span className="field-label">UF</span><select className="field" value={uf} onChange={(event) => { setLoading(true); setLoadError(false); setItems([]); setMunicipioId(''); setUF(event.target.value); }}>{ufs.map((item) => <option key={item}>{item}</option>)}</select></label><label><span className="field-label">Município <b className="text-red-500">*</b></span><select className="field" name={name} value={municipioId} onChange={(event) => setMunicipioId(event.target.value)} required disabled={loading || loadError}><option value="">{loading ? 'Carregando...' : loadError ? 'Falha ao carregar' : 'Selecione'}</option>{municipioId && !currentIsListed && <option value={municipioId}>Município atual · IBGE {municipioId}</option>}{items.map((item) => <option key={item.codigo_ibge} value={item.codigo_ibge}>{item.nome}</option>)}</select></label></div>;
+  return <div className="grid grid-cols-[88px_1fr] gap-2 sm:col-span-2"><label><span className="field-label">UF</span><select className="field" value={uf} onChange={(event) => { setItems([]); setMunicipioId(''); setUF(event.target.value); }}>{ufs.map((item) => <option key={item}>{item}</option>)}</select></label><label><span className="field-label">Município <b className="text-red-500">*</b></span><select className="field" name={name} value={municipioId} onChange={(event) => setMunicipioId(event.target.value)} required disabled={loading || loadError}><option value="">{loading ? 'Carregando...' : loadError ? 'Falha ao carregar' : 'Selecione'}</option>{municipioId && !currentIsListed && <option value={municipioId}>Município atual · IBGE {municipioId}</option>}{items.map((item) => <option key={item.codigo_ibge} value={item.codigo_ibge}>{item.nome}</option>)}</select></label></div>;
 }
 
 function RouteStops({ stops, selected, onChange }: { stops: Parada[]; selected: number[]; onChange(value: number[]): void }) {
