@@ -38,14 +38,21 @@ export function limparPlaca(raw: string): string {
 /**
  * Máscara progressiva para o campo de digitação.
  *
- * O hífen só aparece a partir da quinta posição, que é quando dá para saber o
- * padrão. Antes disso `ABC1` ainda pode virar as duas coisas, e mostrar o hífen
- * cedo obrigaria a tirá-lo de volta ao digitar uma letra.
+ * Até a quinta posição ainda não dá para saber o padrão — `ABC1` pode virar as
+ * duas coisas. Mas se o admin já digitou o hífen ali (é o lugar natural pra
+ * ele, logo depois das 3 letras), deixamos aparecer: bloquear uma tecla que a
+ * pessoa apertou de propósito rende mais estranheza do que corrigir sozinho
+ * depois. Se a placa virar Mercosul, o hífen some assim que a 5ª posição
+ * chega numa letra.
  */
 export function formatarPlaca(raw: string): string {
   const limpa = limparPlaca(raw);
-  const antiga = limpa.length > 4 && ehDigito(limpa[4]);
-  return antiga ? `${limpa.slice(0, 3)}-${limpa.slice(3)}` : limpa;
+  if (limpa.length > 4) {
+    return ehDigito(limpa[4]) ? `${limpa.slice(0, 3)}-${limpa.slice(3)}` : limpa;
+  }
+  const comHifenELetrasDigitos = raw.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  const digitouHifen = limpa.length >= 3 && /^[A-Z]{3}-/.test(comHifenELetrasDigitos);
+  return digitouHifen ? `${limpa.slice(0, 3)}-${limpa.slice(3)}` : limpa;
 }
 
 /**

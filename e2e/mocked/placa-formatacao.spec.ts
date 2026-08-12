@@ -32,6 +32,30 @@ test('padrao antigo ganha hifen conforme digita', async ({ page }) => {
   await expect(placa(page)).toHaveValue('ABC-1234');
 });
 
+test('o hifen digitado pelo admin aparece na hora, sem esperar a 5a posicao', async ({ page }) => {
+  await abrirFormulario(page);
+
+  // O admin digita o hifen no lugar natural (logo apos as 3 letras) mesmo sem
+  // o campo ainda saber se vai virar padrao antigo ou Mercosul. Bloquear essa
+  // tecla seria mais estranho do que corrigir sozinho depois, se precisar.
+  await placa(page).pressSequentially('abc-');
+  await expect(placa(page)).toHaveValue('ABC-');
+
+  await placa(page).pressSequentially('1234');
+  await expect(placa(page)).toHaveValue('ABC-1234');
+});
+
+test('o hifen digitado cedo some sozinho se a placa vira mercosul', async ({ page }) => {
+  await abrirFormulario(page);
+
+  await placa(page).pressSequentially('abc-');
+  await expect(placa(page)).toHaveValue('ABC-');
+
+  // A 5a posicao (letra) revela Mercosul, que nao usa hifen.
+  await placa(page).pressSequentially('1d23');
+  await expect(placa(page)).toHaveValue('ABC1D23');
+});
+
 test('padrao mercosul nao recebe hifen', async ({ page }) => {
   await abrirFormulario(page);
 
