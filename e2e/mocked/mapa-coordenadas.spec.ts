@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { mockApi, TEST_ADMIN } from '../support/api-mock';
+import { mockApi, MOCK_RUA_REVERSA, TEST_ADMIN } from '../support/api-mock';
 import { signIn } from '../support/actions';
 
 /**
@@ -21,6 +21,7 @@ async function abrirFormulario(page: Page, aba: string, botaoNovo: string) {
 const mapa = (page: Page) => page.locator('.leaflet-container');
 const latitude = (page: Page) => page.locator('input[name="latitude"]');
 const longitude = (page: Page) => page.locator('input[name="longitude"]');
+const rua = (page: Page) => page.locator('input[name="rua"]');
 const buscaEndereco = (page: Page) => page.getByRole('combobox', { name: 'Buscar endereço' });
 /** Escopado no listbox: os `<select>` de UF e municipio tambem expoem `option`. */
 const resultados = (page: Page) => page.locator('[role="listbox"]').getByRole('option');
@@ -172,6 +173,73 @@ test('termo curto demais nao consulta o Nominatim', async ({ page }) => {
 
   expect(buscas).toEqual([]);
   await expect(resultados(page)).toHaveCount(0);
+});
+
+test('clicar no mapa preenche a rua do destino sozinho', async ({ page }) => {
+  await abrirFormulario(page, 'Destinos', 'Novo destino');
+  await expect(mapa(page)).toBeVisible();
+
+  await expect(rua(page)).toHaveValue('');
+  await mapa(page).click({ position: { x: 180, y: 120 } });
+
+  await expect(rua(page)).toHaveValue(MOCK_RUA_REVERSA);
+});
+
+test('escolher endereco na busca usa a rua do proprio resultado', async ({ page }) => {
+  await abrirFormulario(page, 'Destinos', 'Novo destino');
+  await expect(mapa(page)).toBeVisible();
+
+  await buscaEndereco(page).fill('Avenida Fernandes Lima');
+  await resultados(page).nth(1).click();
+
+  // O resultado da busca ja traz o endereco estruturado, entao nao ha uma
+  // segunda consulta de reverse — e o numero entra junto quando existe.
+  await expect(rua(page)).toHaveValue('Avenida Fernandes Lima, 1250');
+});
+
+test('a rua digitada pelo admin nao e sobrescrita pelo mapa', async ({ page }) => {
+  await abrirFormulario(page, 'Destinos', 'Novo destino');
+  await expect(mapa(page)).toBeVisible();
+
+  await rua(page).fill('Rua que eu digitei');
+  await mapa(page).click({ position: { x: 180, y: 120 } });
+
+  // O ponto entra, mas o texto do admin fica: endereco apagado sem aviso e
+  // pior que campo em branco.
+  await expect(latitude(page)).not.toHaveValue('');
+  await expect(rua(page)).toHaveValue('Rua que eu digitei');
+});
+
+test('mas a rua vinda do mapa e substituida ao mover o ponto', async ({ page }) => {
+  await abrirFormulario(page, 'Destinos', 'Novo destino');
+  await expect(mapa(page)).toBeVisible();
+
+  // Primeiro clique preenche pelo reverse; a busca devolve outro logradouro,
+  // e como o valor atual nao foi digitado, pode ser trocado.
+  await mapa(page).click({ position: { x: 180, y: 120 } });
+  await expect(rua(page)).toHaveValue(MOCK_RUA_REVERSA);
+
+  await buscaEndereco(page).fill('Avenida Fernandes Lima');
+  await resultados(page).first().click();
+
+  await expect(rua(page)).toHaveValue('Avenida Fernandes Lima');
+});
+
+test('parada nao consulta o reverse, porque nao tem campo de rua', async ({ page }) => {
+  await abrirFormulario(page, 'Paradas', 'Nova parada');
+  await expect(mapa(page)).toBeVisible();
+
+  const reversos: string[] = [];
+  await page.route(/nominatim\.openstreetmap\.org/, async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/reverse')) reversos.push('reverse');
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+  });
+
+  await mapa(page).click({ position: { x: 200, y: 140 } });
+  await expect(latitude(page)).not.toHaveValue('');
+  await page.waitForTimeout(600);
+
+  expect(reversos).toEqual([]);
 });
 
 test('rolar com o cursor sobre o mapa rola o formulario, em vez de dar zoom', async ({ page }) => {

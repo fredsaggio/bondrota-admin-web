@@ -190,6 +190,7 @@ export const MOCK_ENDERECOS = [
     lat: '-9.6210292',
     lon: '-35.7390682',
     boundingbox: ['-9.6220000', '-9.6200000', '-35.7400000', '-35.7380000'],
+    address: { road: 'Avenida Fernandes Lima', suburb: 'Gruta de Lourdes', city: 'Maceió' },
   },
   {
     place_id: 102,
@@ -197,8 +198,12 @@ export const MOCK_ENDERECOS = [
     lat: '-9.6354560',
     lon: '-35.7362840',
     boundingbox: ['-9.6360000', '-9.6350000', '-35.7370000', '-35.7355000'],
+    address: { road: 'Avenida Fernandes Lima', house_number: '1250', suburb: 'Pitanguinha', city: 'Maceió' },
   },
 ];
+
+/** Logradouro que o `/reverse` mocado devolve para qualquer ponto clicado. */
+export const MOCK_RUA_REVERSA = 'Rua Doutor Osvaldo Sarmento';
 
 /**
  * A suite mocada roda offline e em todo PR. Os mapas do painel buscariam tiles
@@ -211,13 +216,15 @@ async function stubMapNetwork(page: Page) {
     route.fulfill({ status: 200, contentType: 'image/png', body: BLANK_TILE }));
 
   await page.route(/nominatim\.openstreetmap\.org/, (route) => {
-    // `q` e a busca livre de endereco; `city` e a estruturada do municipio.
-    const busca = new URL(route.request().url()).searchParams.get('q');
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(busca ? MOCK_ENDERECOS : [{ boundingbox: MOCK_MUNICIPIO_BOUNDS }]),
-    });
+    const url = new URL(route.request().url());
+    // Tres consumos diferentes: `/reverse` resolve a rua de um ponto clicado,
+    // `q` e a busca livre de endereco e `city` e a estruturada do municipio.
+    const corpo = url.pathname.endsWith('/reverse')
+      ? { address: { road: MOCK_RUA_REVERSA, city: 'Campo Alegre' } }
+      : url.searchParams.get('q')
+        ? MOCK_ENDERECOS
+        : [{ boundingbox: MOCK_MUNICIPIO_BOUNDS }];
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(corpo) });
   });
 }
 

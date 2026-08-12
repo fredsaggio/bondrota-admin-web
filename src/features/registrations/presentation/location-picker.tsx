@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { config } from '@/shared/infrastructure/config/config-api';
 import { useDebouncedValue } from '@/shared/application/use-debounced-value';
-import { findMunicipioBounds, searchAddress, type AddressResult, type AreaBounds } from '@/features/registrations/infrastructure/geocoding';
+import { findMunicipioBounds, reverseStreet, searchAddress, type AddressResult, type AreaBounds } from '@/features/registrations/infrastructure/geocoding';
 import type { Point } from '@/features/registrations/presentation/location-map';
 
 const LocationMap = dynamic(() => import('@/features/registrations/presentation/location-map'), {
@@ -21,6 +21,11 @@ interface Props {
   defaultLongitude: string;
   /** Município selecionado no formulário. Só destinos têm; paradas passam `null`. */
   municipio: { nome: string; uf: string } | null;
+  /**
+   * Recebe o logradouro do ponto escolhido. Só destinos passam — paradas não
+   * têm campo de rua, e sem ouvinte nenhuma consulta de reverse é feita.
+   */
+  onAddress?(street: string): void;
 }
 
 /**
@@ -29,11 +34,19 @@ interface Props {
  * porque `buildPayload` lê tudo do FormData por nome — assim o submit, a API e
  * o backend seguem sem saber que existe um mapa aqui.
  */
-export function LocationPicker({ defaultLatitude, defaultLongitude, municipio }: Props) {
+export function LocationPicker({ defaultLatitude, defaultLongitude, municipio, onAddress }: Props) {
   const [latitude, setLatitude] = useState(defaultLatitude);
   const [longitude, setLongitude] = useState(defaultLongitude);
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [focus, setFocus] = useState<AreaBounds | null>(null);
+
+  // Guardado em ref para o handler enxergar sempre a versão atual, mesmo que o
+  // react-leaflet tenha registrado o callback do clique em outro render.
+  const addressListener = useRef(onAddress);
+  useEffect(() => { addressListener.current = onAddress; }, [onAddress]);
+  // Cancela o reverse anterior: cliques seguidos no mapa poderiam chegar fora
+  // de ordem e gravar a rua do ponto antigo.
+  const pendingReverse = useRef<AbortController | null>(null);
 
   // O `center` do MapContainer só vale na montagem, então o mapa só entra em
   // cena depois que sabemos para onde olhar — senão ele nasceria no lugar
@@ -59,15 +72,35 @@ export function LocationPicker({ defaultLatitude, defaultLongitude, municipio }:
   }, [municipioNome, municipioUF]);
 
   const point = toPoint(latitude, longitude);
-  // Seis casas decimais ficam abaixo do metro; o valor cru do Leaflet enche o
-  // campo de dígitos que não significam nada.
-  const pick = (next: Point) => {
+
+  /**
+   * Aplica um ponto vindo de interação com o mapa (clique, arrasto do marcador
+   * ou escolha na busca). Digitar coordenada à mão não passa por aqui de
+   * propósito: cada tecla viraria uma consulta de reverse.
+   *
+   * `street` já vem preenchido quando a origem é a busca, que consultou o
+   * endereço junto; só o clique e o arrasto precisam do reverse.
+   */
+  const pick = (next: Point, street?: string) => {
+    // Seis casas decimais ficam abaixo do metro; o valor cru do Leaflet enche o
+    // campo de dígitos que não significam nada.
     setLatitude(next.latitude.toFixed(6));
     setLongitude(next.longitude.toFixed(6));
+
+    if (!addressListener.current) return;
+    pendingReverse.current?.abort();
+    if (street !== undefined) {
+      if (street) addressListener.current(street);
+      return;
+    }
+    const controller = new AbortController();
+    pendingReverse.current = controller;
+    void reverseStreet(next.latitude, next.longitude, controller.signal)
+      .then((found) => { if (found && !controller.signal.aborted) addressListener.current?.(found); });
   };
 
   const chooseAddress = (result: AddressResult) => {
-    pick({ latitude: result.latitude, longitude: result.longitude });
+    pick({ latitude: result.latitude, longitude: result.longitude }, result.street);
     // Enquadra pela área do resultado quando ela existe; um endereço exato traz
     // caixa minúscula, e o `fitBounds` já resolve o zoom sozinho.
     if (result.bounds) setFocus(result.bounds);

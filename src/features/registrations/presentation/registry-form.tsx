@@ -71,6 +71,14 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
   // irmãos. Começa nulo mesmo ao editar: o mapa deve abrir na coordenada já
   // salva, não na cidade.
   const [municipio, setMunicipio] = useState<{ nome: string; uf: string } | null>(null);
+  // Rua dos destinos: controlada, porque o mapa também escreve nela. O `doMapa`
+  // anda junto do texto para a decisão de sobrescrever ser atômica — só o que o
+  // mapa preencheu pode ser trocado por um novo ponto. O que o admin digitou
+  // fica; endereço apagado sem aviso é pior que campo em branco.
+  const [rua, setRua] = useState(() => ({ texto: value(record, 'rua'), doMapa: false }));
+
+  const preencherRua = (logradouro: string) =>
+    setRua((atual) => (atual.texto.trim() === '' || atual.doMapa ? { texto: logradouro, doMapa: true } : atual));
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,9 +92,9 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
       <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
         {entity === 'destinos' && <>
           <Field label="Nome do destino" name="nome" defaultValue={value(record, 'nome')} required span />
-          <Field label="Rua / logradouro" name="rua" defaultValue={value(record, 'rua')} required span />
+          <Field label="Rua / logradouro" name="rua" value={rua.texto} onChange={(texto) => setRua({ texto, doMapa: false })} required span />
           <MunicipioField defaultMunicipioId={Number(record?.municipio_id ?? 0)} onSelect={setMunicipio} />
-          <LocationPicker defaultLatitude={value(record, 'latitude')} defaultLongitude={value(record, 'longitude')} municipio={municipio} />
+          <LocationPicker defaultLatitude={value(record, 'latitude')} defaultLongitude={value(record, 'longitude')} municipio={municipio} onAddress={preencherRua} />
         </>}
 
         {entity === 'paradas' && <>
@@ -185,8 +193,12 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
   }
 }
 
-function Field({ label, name, type = 'text', step, defaultValue, required, span }: { label: string; name: string; type?: string; step?: string; defaultValue?: string; required?: boolean; span?: boolean }) {
-  return <label className={span ? 'sm:col-span-2' : ''}><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><input className="field" name={name} type={type} step={step} defaultValue={defaultValue} required={required} /></label>;
+/** Passe `value` + `onChange` quando algo fora do campo precisar escrever nele
+ * (é o caso da rua, preenchida pelo mapa); sem eles o campo fica não-controlado
+ * e o valor sai pelo FormData, como no resto do formulário. */
+function Field({ label, name, type = 'text', step, defaultValue, value, onChange, required, span }: { label: string; name: string; type?: string; step?: string; defaultValue?: string; value?: string; onChange?(next: string): void; required?: boolean; span?: boolean }) {
+  const controlled = value !== undefined;
+  return <label className={span ? 'sm:col-span-2' : ''}><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><input className="field" name={name} type={type} step={step} {...(controlled ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })} required={required} /></label>;
 }
 
 /** Nome de pessoa (cliente/motorista): bloqueia dígitos e símbolos ao digitar.
