@@ -1,0 +1,79 @@
+*** Begin Patch
+*** Update File: internal/veiculos/veiculo_handler.go
+@@
+ 	})
+ 	if err != nil {
++		if db.IsUniqueViolation(err, "veiculos_placa_key") {
++			http.Error(w, "Já existe outro veículo cadastrado com esta placa.", http.StatusConflict)
++			return
++		}
+ 		slog.Error("failed to create veiculo", "error", err)
+@@
+ 	if err != nil {
+ 		if errors.Is(err, ErrNotFound) {
+@@
+ 			return
+ 		}
++		if db.IsUniqueViolation(err, "veiculos_placa_key") {
++			http.Error(w, "Já existe outro veículo cadastrado com esta placa.", http.StatusConflict)
++			return
++		}
+ 		if errors.Is(err, validation.ErrPlacaInvalida) || errors.Is(err, validation.ErrModeloInvalido) {
+*** Update File: internal/veiculos/veiculo_handler_test.go
+@@
+ func TestVeiculoHandler_RejeitaPlacaComSimbolosMisturados(t *testing.T) {
+@@
+ }
++
++func TestVeiculoHandler_PlacaDuplicada(t *testing.T) {
++	duplicateError := fmt.Errorf("db/veiculoStore: %w", &pgconn.PgError{
++		Code:           "23505",
++		ConstraintName: "veiculos_placa_key",
++	})
++	const wantMessage = "Já existe outro veículo cadastrado com esta placa.\n"
++
++	t.Run("create retorna conflito claro", func(t *testing.T) {
++		st := mocks.NewMockVeiculoStore(t)
++		st.EXPECT().Create(mock.Anything, mock.Anything).Return(nil, duplicateError)
++		h := veiculos.NewVeiculoHandler(st)
++		req := httptest.NewRequest(http.MethodPost, "/veiculos/", strings.NewReader(`{
++			"placa":"ABC1D23","modelo":"Onibus 1722","categoria":"escolar",
++			"capacidade":24,"status":"ativo"
++		}`))
++		rr := httptest.NewRecorder()
++
++		newVeiculoRouter(h).ServeHTTP(rr, req)
++
++		if rr.Code != http.StatusConflict || rr.Body.String() != wantMessage {
++			t.Fatalf("want 409 with clear message, got %d: %q", rr.Code, rr.Body.String())
++		}
++	})
++
++	t.Run("update retorna conflito claro", func(t *testing.T) {
++		st := mocks.NewMockVeiculoStore(t)
++		st.EXPECT().Update(mock.Anything, int64(1), mock.Anything).Return(nil, duplicateError)
++		h := veiculos.NewVeiculoHandler(st)
++		req := httptest.NewRequest(http.MethodPut, "/veiculos/1", strings.NewReader(`{"placa":"ABC1D23"}`))
++		rr := httptest.NewRecorder()
++
++		newVeiculoRouter(h).ServeHTTP(rr, req)
++
++		if rr.Code != http.StatusConflict || rr.Body.String() != wantMessage {
++			t.Fatalf("want 409 with clear message, got %d: %q", rr.Code, rr.Body.String())
++		}
++	})
++}
+*** Update File: docs/api-reference.md
+@@
+ rejeitados. `modelo` aceita apenas letras, numeros e espacos. A API rejeita outros
+-caracteres com `400 Bad Request`, tanto na criacao quanto na atualizacao.
++caracteres com `400 Bad Request`, tanto na criacao quanto na atualizacao. Se a
++placa ja pertencer a outro veiculo, criacao e atualizacao respondem `409 Conflict`
++com uma mensagem clara para o usuario.
+@@
+-| `POST` | `BASE_URL/veiculos/` | Cria veiculo. | `VeiculoCreateRequest` | `201 { "id": number }` | `400`, `401`, `403`, `422`, `500` |
++| `POST` | `BASE_URL/veiculos/` | Cria veiculo. | `VeiculoCreateRequest` | `201 { "id": number }` | `400`, `401`, `403`, `409`, `422`, `500` |
+@@
+-| `PUT` | `BASE_URL/veiculos/{veiculoID}` | Atualiza veiculo. | `VeiculoUpdateRequest` | `200 VeiculoResponse` | `400`, `401`, `403`, `404`, `422`, `500` |
++| `PUT` | `BASE_URL/veiculos/{veiculoID}` | Atualiza veiculo. | `VeiculoUpdateRequest` | `200 VeiculoResponse` | `400`, `401`, `403`, `404`, `409`, `422`, `500` |
+*** End Patch

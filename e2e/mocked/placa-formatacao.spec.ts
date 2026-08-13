@@ -111,3 +111,26 @@ test('a placa vai limpa para a API, sem o hifen da mascara', async ({ page }) =>
 
   await expect.poll(() => enviados).toEqual(['ABC1234']);
 });
+
+test('placa duplicada mostra o motivo e mantem o formulario aberto', async ({ page }) => {
+  await abrirFormulario(page);
+
+  await page.route('**/api/v1/veiculos/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({
+        status: 409,
+        contentType: 'text/plain; charset=utf-8',
+        body: 'Já existe outro veículo cadastrado com esta placa.\n',
+      });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+
+  await placa(page).pressSequentially('abc1d23');
+  await modelo(page).fill('Onibus Teste');
+  await page.locator('select[name="categoria"]').selectOption('escolar');
+  await page.getByRole('button', { name: 'Criar registro' }).click();
+
+  await expect(page.getByText('Já existe outro veículo cadastrado com esta placa.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Criar registro' })).toBeVisible();
+});

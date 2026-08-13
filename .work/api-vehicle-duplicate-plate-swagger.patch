@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: docs/swagger.yaml
+@@
+         '201':
+           description: Criado
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/VeiculoIDResponse'
++        '409':
++          description: Já existe outro veículo cadastrado com esta placa
+@@
+         '200':
+           description: Sucesso
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/VeiculoResponse'
++        '409':
++          description: Já existe outro veículo cadastrado com esta placa
+       parameters:
+       - name: veiculoID
+*** End Patch
