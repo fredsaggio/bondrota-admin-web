@@ -222,7 +222,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
             accept="application/pdf,image/jpeg,image/png,image/webp"
             current={comprovante}
             onUploaded={setComprovante}
-g          />
+          />
         </>}
       </div>
 
