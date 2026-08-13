@@ -1,8 +1,9 @@
 import type { Sentido, TurnoOperacional } from '@/shared/domain/transport';
+import type { PublicId } from '@/shared/domain/public-id';
 
 export type StatusReserva = 'confirmada' | 'cancelada';
 export interface Reserva {
-  id: number; cliente_id: number; vinculo_id: number; data_viagem: string; turno: TurnoOperacional;
+  id: PublicId; cliente_id: PublicId; vinculo_id: PublicId; data_viagem: string; turno: TurnoOperacional;
   destino_id: number; rota_interna_id: number; sentido: Sentido; status: StatusReserva;
   created_at: string; updated_at: string;
 }
@@ -21,11 +22,11 @@ export interface ReservaResumo {
 
 export type StatusViagem = 'programada' | 'em_andamento' | 'concluida' | 'cancelada';
 export interface Viagem {
-  id: number; ciclo_viagem_id: number; sentido: Sentido; status: StatusViagem; created_at: string; updated_at: string;
+  id: PublicId; ciclo_viagem_id: number; sentido: Sentido; status: StatusViagem; created_at: string; updated_at: string;
 }
 export interface CicloViagem {
   id: number; data_viagem: string; turno: TurnoOperacional; municipio_destino_id: number;
-  rota_interna_id: number; veiculo_id: number; motorista_id: number;
+  rota_interna_id: number; veiculo_id: number; motorista_id: PublicId;
   status: 'planejado' | 'em_andamento' | 'concluido' | 'cancelado';
   expires_at: string; created_at: string; updated_at: string;
 }
@@ -46,18 +47,18 @@ export interface ViagemResumo {
   proximas: ViagemComNomes[];
 }
 export interface ViagemHorario {
-  id: number; viagem_id: number; tipo: 'partida_prevista' | 'inicio_real' | 'fim_real';
+  id: number; viagem_id: PublicId; tipo: 'partida_prevista' | 'inicio_real' | 'fim_real';
   horario: string; created_at: string; updated_at: string;
 }
 
 export type StatusPresenca = 'aguardando' | 'embarcou' | 'faltou' | 'cancelado';
 export interface ViagemReserva {
-  id: number; viagem_id: number; reserva_id: number; status_presenca: StatusPresenca; cliente_id: number;
-  vinculo_id: number; data_viagem: string; turno: TurnoOperacional; destino_id: number;
+  id: number; viagem_id: PublicId; reserva_id: PublicId; status_presenca: StatusPresenca; cliente_id: PublicId;
+  vinculo_id: PublicId; data_viagem: string; turno: TurnoOperacional; destino_id: number;
   rota_interna_id: number; sentido: Sentido; created_at: string; updated_at: string;
 }
 export interface ViagemLocalizacao {
-  viagem_id: number; motorista_id: number; latitude: number; longitude: number; velocidade_kmh: number;
+  viagem_id: PublicId; motorista_id: PublicId; latitude: number; longitude: number; velocidade_kmh: number;
   direcao_graus: number; precisao_metros: number; registrada_em: string; created_at: string; updated_at: string;
 }
 export interface FalhaPlanejamento {
@@ -68,7 +69,7 @@ export interface FalhaPlanejamento {
 export interface PontoRota { nome: string; latitude: number; longitude: number }
 export interface RotaDinamica {
   rota: {
-    id: number; viagem_id: number; provider: string; origem: PontoRota; destino_final: PontoRota;
+    id: number; viagem_id: PublicId; provider: string; origem: PontoRota; destino_final: PontoRota;
     distancia_metros: number; duracao_segundos: number; geometry: { type: 'LineString'; coordinates: number[][] };
     expires_at: string; created_at: string; updated_at: string;
   };

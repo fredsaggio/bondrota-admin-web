@@ -115,35 +115,35 @@ async function loadEntity(entity: Exclude<EntityKey, 'clientes' | 'vinculos'>): 
 export async function saveRegistryRecord(entity: EntityKey, record: RegistryRecord | null, payload: Record<string, unknown>) {
   const id = record?.id;
   switch (entity) {
-    case 'destinos': return id ? destinos.update(id, payload) : destinos.create(payload);
-    case 'paradas': return id ? paradas.update(id, payload) : paradas.create(payload);
-    case 'horarios': return id ? horarios.update(id, payload) : horarios.create(payload);
-    case 'veiculos': return id ? veiculos.update(id, payload) : veiculos.create(payload);
-    case 'motoristas': return id ? motoristas.update(id, payload) : motoristas.create(payload);
-    case 'clientes': return id ? clientes.update(id, payload) : clientes.create(payload);
+    case 'destinos': return id ? destinos.update(Number(id), payload) : destinos.create(payload);
+    case 'paradas': return id ? paradas.update(Number(id), payload) : paradas.create(payload);
+    case 'horarios': return id ? horarios.update(Number(id), payload) : horarios.create(payload);
+    case 'veiculos': return id ? veiculos.update(Number(id), payload) : veiculos.create(payload);
+    case 'motoristas': return id ? motoristas.update(String(id), payload) : motoristas.create(payload);
+    case 'clientes': return id ? clientes.update(String(id), payload) : clientes.create(payload);
     case 'rotas': {
       const stopIds = payload.parada_ids as number[];
       if (!stopIds.length) throw new Error('Adicione pelo menos uma parada à rota.');
-      return id ? rotasInternas.update(id, stopIds) : rotasInternas.create(stopIds);
+      return id ? rotasInternas.update(Number(id), stopIds) : rotasInternas.create(stopIds);
     }
     case 'vinculos': {
-      const clienteId = Number(payload.cliente_id);
+      const clienteId = String(payload.cliente_id);
       const body = { ...payload };
       delete body.cliente_id;
-      return id ? vinculos.update(clienteId, id, body) : vinculos.create(clienteId, body);
+      return id ? vinculos.update(clienteId, String(id), body) : vinculos.create(clienteId, body);
     }
   }
 }
 
 export function removeRegistryRecord(entity: EntityKey, record: RegistryRecord) {
   switch (entity) {
-    case 'destinos': return destinos.remove(record.id);
-    case 'paradas': return paradas.remove(record.id);
-    case 'rotas': return rotasInternas.remove(record.id);
-    case 'horarios': return horarios.remove(record.id);
-    case 'veiculos': return veiculos.remove(record.id);
-    case 'motoristas': return motoristas.remove(record.id);
-    case 'clientes': return clientes.remove(record.id);
-    case 'vinculos': return vinculos.remove(Number(record.cliente_id), record.id);
+    case 'destinos': return destinos.remove(Number(record.id));
+    case 'paradas': return paradas.remove(Number(record.id));
+    case 'rotas': return rotasInternas.remove(Number(record.id));
+    case 'horarios': return horarios.remove(Number(record.id));
+    case 'veiculos': return veiculos.remove(Number(record.id));
+    case 'motoristas': return motoristas.remove(String(record.id));
+    case 'clientes': return clientes.remove(String(record.id));
+    case 'vinculos': return vinculos.remove(String(record.cliente_id), String(record.id));
   }
 }

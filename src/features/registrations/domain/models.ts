@@ -1,4 +1,5 @@
 import type { Turno, TurnoOperacional } from '@/shared/domain/transport';
+import type { PublicId } from '@/shared/domain/public-id';
 
 export interface Municipio { codigo_ibge: number; nome: string; uf: string }
 export interface Destino { id: number; nome: string; rua: string; municipio_id: number; latitude: number; longitude: number }
@@ -15,7 +16,7 @@ export interface Veiculo {
 }
 
 export interface Motorista {
-  id: number; nome: string; cpf: string; telefone: string; data_nasc: string; turno: Turno;
+  id: PublicId; nome: string; cpf: string; telefone: string; data_nasc: string; turno: Turno;
   municipio_trabalho_id: number; foto: string;
 }
 
@@ -24,9 +25,9 @@ export interface HorarioTurno {
   horario_volta: string; created_at: string; updated_at: string;
 }
 
-export interface HorarioFixo { id: number; vinculo_id: number; dia_semana: number }
+export interface HorarioFixo { id: number; vinculo_id: PublicId; dia_semana: number }
 export interface Vinculo {
-  id: number; cliente_id: number; tipo: 'estudante' | 'estagio'; turno: Turno; destino_id: number;
+  id: PublicId; cliente_id: PublicId; tipo: 'estudante' | 'estagio'; turno: Turno; destino_id: number;
   rota_interna_id: number; curso: string; comprovante: string; validade: string; horarios_fixos: HorarioFixo[];
 }
 
@@ -34,6 +35,6 @@ export interface Vinculo {
 export interface VinculoComCliente extends Vinculo { cliente_nome: string; destino_nome: string }
 
 export interface Cliente {
-  id: number; nome: string; cpf: string; telefone: string; data_nasc: string;
+  id: PublicId; nome: string; cpf: string; telefone: string; data_nasc: string;
   documento_identificacao: string; comprovante_residencia: string; vinculos?: Vinculo[];
 }

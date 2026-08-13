@@ -35,37 +35,37 @@ function listQuery({ cursor, limit, q, dataInicio, dataFim, ...rest }: ViagemLis
 export const reservas = {
   list: (params: ListParams = {}) => api<CursorPage<ReservaComNomes>>(`/reservas/${listQuery(params)}`),
   summary: () => api<ReservaResumo>('/reservas/resumo'),
-  listByCliente: (clienteId: number) => api<Reserva[]>(`/clientes/${clienteId}/reservas/`),
-  listByVinculo: (clienteId: number, vinculoId: number) => api<Reserva[]>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/`),
-  get: (id: number) => api<Reserva>(`/reservas/${id}`),
-  create: (clienteId: number, vinculoId: number, payload: JsonRecord) => api<Reserva>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/`, { method: 'POST', body: payload }),
-  availability: (clienteId: number, vinculoId: number, query: URLSearchParams) => api<{
+  listByCliente: (clienteId: Reserva['cliente_id']) => api<Reserva[]>(`/clientes/${clienteId}/reservas/`),
+  listByVinculo: (clienteId: Reserva['cliente_id'], vinculoId: Reserva['vinculo_id']) => api<Reserva[]>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/`),
+  get: (id: Reserva['id']) => api<Reserva>(`/reservas/${id}`),
+  create: (clienteId: Reserva['cliente_id'], vinculoId: Reserva['vinculo_id'], payload: JsonRecord) => api<Reserva>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/`, { method: 'POST', body: payload }),
+  availability: (clienteId: Reserva['cliente_id'], vinculoId: Reserva['vinculo_id'], query: URLSearchParams) => api<{
     data_viagem: string; turno: string; sentido: string; partida_em: string; fechamento_em: string;
     consultado_em: string; disponivel: boolean;
   }>(`/clientes/${clienteId}/vinculos/${vinculoId}/reservas/disponibilidade?${query}`),
-  update: (id: number, payload: JsonRecord) => api<Reserva>(`/reservas/${id}`, { method: 'PUT', body: payload }),
-  cancel: (id: number) => api<Reserva>(`/reservas/${id}/cancelar`, { method: 'POST' }),
-  remove: (id: number) => api<void>(`/reservas/${id}`, { method: 'DELETE' }),
+  update: (id: Reserva['id'], payload: JsonRecord) => api<Reserva>(`/reservas/${id}`, { method: 'PUT', body: payload }),
+  cancel: (id: Reserva['id']) => api<Reserva>(`/reservas/${id}/cancelar`, { method: 'POST' }),
+  remove: (id: Reserva['id']) => api<void>(`/reservas/${id}`, { method: 'DELETE' }),
 };
 
 export const viagens = {
   list: (params: ViagemListParams = {}) => api<CursorPage<ViagemComNomes>>(`/viagens/${listQuery(params)}`),
   summary: () => api<ViagemResumo>('/viagens/resumo'),
-  get: (id: number) => api<ViagemComCiclo>(`/viagens/${id}`),
-  start: (id: number) => api<Viagem>(`/viagens/${id}/iniciar`, { method: 'POST' }),
-  finish: (id: number) => api<Viagem>(`/viagens/${id}/concluir`, { method: 'POST' }),
-  cancel: (id: number) => api<Viagem>(`/viagens/${id}/cancelar`, { method: 'POST' }),
-  schedules: (id: number) => api<ViagemHorario[]>(`/viagens/${id}/horarios`),
-  passengers: (id: number) => api<ViagemReserva[]>(`/viagens/${id}/reservas/`),
-  setPresence: (id: number, reservaId: number, status_presenca: StatusPresenca) => api<ViagemReserva>(`/viagens/${id}/reservas/${reservaId}/presenca`, {
+  get: (id: Viagem['id']) => api<ViagemComCiclo>(`/viagens/${id}`),
+  start: (id: Viagem['id']) => api<Viagem>(`/viagens/${id}/iniciar`, { method: 'POST' }),
+  finish: (id: Viagem['id']) => api<Viagem>(`/viagens/${id}/concluir`, { method: 'POST' }),
+  cancel: (id: Viagem['id']) => api<Viagem>(`/viagens/${id}/cancelar`, { method: 'POST' }),
+  schedules: (id: Viagem['id']) => api<ViagemHorario[]>(`/viagens/${id}/horarios`),
+  passengers: (id: Viagem['id']) => api<ViagemReserva[]>(`/viagens/${id}/reservas/`),
+  setPresence: (id: Viagem['id'], reservaId: ViagemReserva['reserva_id'], status_presenca: StatusPresenca) => api<ViagemReserva>(`/viagens/${id}/reservas/${reservaId}/presenca`, {
     method: 'PUT', body: { status_presenca },
   }),
-  location: (id: number) => api<ViagemLocalizacao>(`/viagens/${id}/localizacao`),
-  updateLocation: (id: number, payload: JsonRecord) => api<ViagemLocalizacao>(`/viagens/${id}/localizacao`, { method: 'PUT', body: payload }),
-  route: (id: number) => api<RotaDinamica>(`/viagens/${id}/rota-dinamica`),
-  calculateRoute: (id: number) => api<RotaDinamica>(`/viagens/${id}/rota-dinamica/calcular`, { method: 'POST' }),
-  createRoute: (id: number, payload: JsonRecord) => api<RotaDinamica>(`/viagens/${id}/rota-dinamica`, { method: 'POST', body: payload }),
-  deleteRoute: (id: number) => api<void>(`/viagens/${id}/rota-dinamica`, { method: 'DELETE' }),
+  location: (id: Viagem['id']) => api<ViagemLocalizacao>(`/viagens/${id}/localizacao`),
+  updateLocation: (id: Viagem['id'], payload: JsonRecord) => api<ViagemLocalizacao>(`/viagens/${id}/localizacao`, { method: 'PUT', body: payload }),
+  route: (id: Viagem['id']) => api<RotaDinamica>(`/viagens/${id}/rota-dinamica`),
+  calculateRoute: (id: Viagem['id']) => api<RotaDinamica>(`/viagens/${id}/rota-dinamica/calcular`, { method: 'POST' }),
+  createRoute: (id: Viagem['id'], payload: JsonRecord) => api<RotaDinamica>(`/viagens/${id}/rota-dinamica`, { method: 'POST', body: payload }),
+  deleteRoute: (id: Viagem['id']) => api<void>(`/viagens/${id}/rota-dinamica`, { method: 'DELETE' }),
 };
 
 export const planejamento = {

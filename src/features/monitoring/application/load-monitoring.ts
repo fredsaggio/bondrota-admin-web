@@ -1,6 +1,7 @@
 import { motoristas, veiculos } from '@/features/registrations/infrastructure/registrations-api';
 import { viagens } from '@/features/operations/infrastructure/operations-api';
 import { ApiError } from '@/shared/infrastructure/http/api-client';
+import type { PublicId } from '@/shared/domain/public-id';
 
 /**
  * Página de viagens acompanháveis. Só programadas ou em andamento, e as mais
@@ -17,7 +18,7 @@ export async function loadMonitoringReferences() {
   return { driverItems, vehicleItems };
 }
 
-export async function loadLiveTrip(viagemId: number | null) {
+export async function loadLiveTrip(viagemId: PublicId | null) {
   if (!viagemId) return { location: null, route: null };
   const [location, route] = await Promise.all([
     viagens.location(viagemId).catch((error) => error instanceof ApiError && error.status === 404 ? null : Promise.reject(error)),

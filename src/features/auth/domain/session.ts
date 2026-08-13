@@ -1,5 +1,5 @@
 export interface AdminSession {
-  userId: number;
+  userId: string;
   role: 'admin';
   expiresAt: number;
 }

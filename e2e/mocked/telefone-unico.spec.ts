@@ -1,12 +1,12 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { makeClientes, mockApi, TEST_ADMIN } from '../support/api-mock';
+import { makeClientes, mockApi, mockPublicId, TEST_ADMIN } from '../support/api-mock';
 import { signIn } from '../support/actions';
 
 test.describe.configure({ mode: 'serial' });
 
 const motorista = {
-  id: 42,
+  id: mockPublicId('mot', 42),
   nome: 'Motorista Existente',
   cpf: '12345678909',
   telefone: '82999990000',

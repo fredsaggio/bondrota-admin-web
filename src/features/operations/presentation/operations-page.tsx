@@ -11,6 +11,7 @@ import { DateInput } from '@/shared/presentation/components/date-input';
 import { loadOperations, type OperationsData } from '@/features/operations/application/load-operations';
 import { reservas, viagens } from '@/features/operations/infrastructure/operations-api';
 import type { FalhaPlanejamento, ReservaComNomes, RotaDinamica, StatusPresenca, ViagemComNomes, ViagemHorario, ViagemReserva } from '@/features/operations/domain/models';
+import type { PublicId } from '@/shared/domain/public-id';
 
 type Tab = 'reservas' | 'viagens' | 'falhas';
 
@@ -19,8 +20,8 @@ export function OperationsPage() {
   const [search, setSearch] = useState('');
   const [range, setRange] = useState({ inicio: '', fim: '' });
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [confirm, setConfirm] = useState<{ kind: 'delete-booking' | 'cancel-trip'; id: number } | null>(null);
-  const [detailId, setDetailId] = useState<number | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: 'delete-booking' | 'cancel-trip'; id: PublicId } | null>(null);
+  const [detailId, setDetailId] = useState<PublicId | null>(null);
   const [busy, setBusy] = useState(false);
 
   // Reservas e viagens buscam no servidor, então esperam o usuário parar de
@@ -119,11 +120,11 @@ function DateRange({ value, onChange }: { value: { inicio: string; fim: string }
   );
 }
 
-function BookingsTable({ items, busy, onCancel, onDelete }: { items: ReservaComNomes[]; busy: boolean; onCancel(id: number): void; onDelete(id: number): void }) {
+function BookingsTable({ items, busy, onCancel, onDelete }: { items: ReservaComNomes[]; busy: boolean; onCancel(id: PublicId): void; onDelete(id: PublicId): void }) {
   return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Cliente</th><th>Data</th><th>Turno</th><th>Sentido</th><th>Destino</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td className="font-semibold">{item.id}</td><td>{item.cliente_nome}</td><td>{date(item.data_viagem)}</td><td><span className="badge badge-blue">{item.turno}</span></td><td className="capitalize">{item.sentido}</td><td>{item.destino_nome}</td><td><Badge status={item.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8 text-amber-600" disabled={busy || item.status === 'cancelada'} onClick={() => onCancel(item.id)} title="Cancelar"><Ban size={14} /></button><button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onDelete(item.id)} title="Excluir"><Trash2 size={14} /></button></div></td></tr>)}</tbody></table></div>;
 }
 
-function TripsTable({ items, busy, onDetail, onStart, onFinish, onCancel }: { items: ViagemComNomes[]; busy: boolean; onDetail(id: number): void; onStart(id: number): void; onFinish(id: number): void; onCancel(id: number): void }) {
+function TripsTable({ items, busy, onDetail, onStart, onFinish, onCancel }: { items: ViagemComNomes[]; busy: boolean; onDetail(id: PublicId): void; onStart(id: PublicId): void; onFinish(id: PublicId): void; onCancel(id: PublicId): void }) {
   return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Data</th><th>Turno</th><th>Destino</th><th>Sentido</th><th>Veículo</th><th>Status</th><th>Ações</th></tr></thead><tbody>{items.map(({ viagem, ciclo, municipio_nome, veiculo_placa }) => <tr key={viagem.id}><td className="font-semibold">{viagem.id}</td><td>{date(ciclo.data_viagem)}</td><td><span className="badge badge-blue">{ciclo.turno}</span></td><td>{municipio_nome}</td><td className="capitalize">{viagem.sentido}</td><td>{veiculo_placa}</td><td><Badge status={viagem.status} /></td><td><div className="flex gap-1"><button className="icon-btn !h-8 !w-8" onClick={() => onDetail(viagem.id)} title="Detalhes"><Eye size={14} /></button>{viagem.status === 'programada' && <button className="icon-btn !h-8 !w-8 text-emerald-600" disabled={busy} onClick={() => onStart(viagem.id)} title="Iniciar"><Play size={14} /></button>}{viagem.status === 'em_andamento' && <button className="icon-btn !h-8 !w-8 text-emerald-600" disabled={busy} onClick={() => onFinish(viagem.id)} title="Concluir"><Check size={14} /></button>}{!['concluida', 'cancelada'].includes(viagem.status) && <button className="icon-btn !h-8 !w-8 text-red-500" disabled={busy} onClick={() => onCancel(viagem.id)} title="Cancelar"><Ban size={14} /></button>}</div></td></tr>)}</tbody></table></div>;
 }
 
@@ -131,7 +132,7 @@ function FailuresTable({ items }: { items: FalhaPlanejamento[] }) {
   return <div className="table-wrap"><table className="data-table"><thead><tr><th>#</th><th>Viagem</th><th>Turno</th><th>Sentido</th><th>Tentativas</th><th>Erro</th><th>Próxima tentativa</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.id}</td><td>{date(item.data_viagem)} · Município #{item.municipio_destino_id}</td><td><span className="badge badge-blue">{item.turno}</span></td><td className="capitalize">{item.sentido}</td><td><span className="badge badge-red">{item.tentativas}</span></td><td><span className="block max-w-sm whitespace-normal text-red-700">{item.ultimo_erro ?? 'Erro não informado'}</span></td><td>{item.proxima_tentativa_em ? dateTime(item.proxima_tentativa_em) : 'Sem nova tentativa'}</td></tr>)}</tbody></table></div>;
 }
 
-function TripDetails({ viagemId, onClose }: { viagemId: number; onClose(): void }) {
+function TripDetails({ viagemId, onClose }: { viagemId: PublicId; onClose(): void }) {
   const [routeBusy, setRouteBusy] = useState(false);
   const [message, setMessage] = useState('');
   const loader = useCallback(async () => {
@@ -149,7 +150,7 @@ function TripDetails({ viagemId, onClose }: { viagemId: number; onClose(): void 
     finally { setRouteBusy(false); }
   }
 
-  async function presence(reservaId: number, status: StatusPresenca) {
+  async function presence(reservaId: PublicId, status: StatusPresenca) {
     try { await viagens.setPresence(viagemId, reservaId, status); await resource.reload(); }
     catch (reason) { setMessage(reason instanceof Error ? reason.message : 'Falha ao registrar presença.'); }
   }

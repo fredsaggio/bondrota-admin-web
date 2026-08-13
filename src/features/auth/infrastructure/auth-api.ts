@@ -2,7 +2,7 @@ import { api } from '@/shared/infrastructure/http/api-client';
 import type { AdminSession } from '@/features/auth/domain/session';
 
 interface AdminSessionResponse {
-  user_id: number;
+  user_id: string;
   role: string;
   expires_at: number;
 }

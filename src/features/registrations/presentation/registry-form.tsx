@@ -260,7 +260,7 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
     }
     case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), foto: files.photo };
     case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), documento_identificacao: files.documentoIdentificacao, comprovante_residencia: files.comprovanteResidencia };
-    case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante: files.comprovante };
+    case 'vinculos': return { cliente_id: record ? String(record.cliente_id) : text('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante: files.comprovante };
   }
 }
 

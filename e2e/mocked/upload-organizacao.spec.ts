@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures';
-import { mockApi, TEST_ADMIN } from '../support/api-mock';
+import { mockApi, mockPublicId, TEST_ADMIN } from '../support/api-mock';
 import { signIn } from '../support/actions';
 
 /**
@@ -24,14 +24,14 @@ async function abrirCadastros(page: Page) {
 
 function sampleMotorista() {
   return {
-    id: 42,
+    id: mockPublicId('mot', 42),
     nome: 'Motorista Existente',
     cpf: '12345678909',
     telefone: '82999990000',
     data_nasc: '1990-01-01',
     turno: 'MT',
     municipio_trabalho_id: 2611606,
-    foto: 'motoristas/42/foto.jpg',
+    foto: `motoristas/${mockPublicId('mot', 42)}/foto.jpg`,
   };
 }
 
@@ -69,7 +69,7 @@ test('editar motorista: a foto vai direto pro caminho definitivo, porque o id j�
   });
 
   await expect.poll(() => mock.uploadRequests).toHaveLength(1);
-  expect(mock.uploadRequests[0]).toBe('motoristas/42/foto.jpg');
+  expect(mock.uploadRequests[0]).toBe(`motoristas/${mockPublicId('mot', 42)}/foto.jpg`);
 });
 
 test('reenviar a foto na mesma sessão de criação usa a mesma pasta de espera', async ({ page }) => {

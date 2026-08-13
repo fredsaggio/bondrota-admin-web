@@ -3,7 +3,7 @@ import type { Destino, Parada, RotaInterna } from '@/features/registrations/doma
 export type EntityKey = 'destinos' | 'paradas' | 'rotas' | 'horarios' | 'veiculos' | 'motoristas' | 'clientes' | 'vinculos';
 
 export interface RegistryRecord {
-  id: number;
+  id: string | number;
   [key: string]: unknown;
 }
 

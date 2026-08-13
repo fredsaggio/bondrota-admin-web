@@ -15,6 +15,10 @@ export const APP_CONFIG = {
 
 const SESSION_TTL_MS = 60 * 60 * 1000;
 
+export function mockPublicId(prefix: 'adm' | 'cli' | 'mot' | 'vin' | 'res' | 'via', value: number) {
+  return `${prefix}_${String(value).padStart(21, '0')}`;
+}
+
 export interface ApiMock {
   /** Passa a responder 401 nas rotas protegidas, simulando um token invalidado. */
   invalidateProtectedRoutes(): void;
@@ -33,10 +37,10 @@ export interface ApiMock {
 }
 
 export interface MockViagem {
-  viagem: { id: number; ciclo_viagem_id: number; sentido: string; status: string; created_at: string; updated_at: string };
+  viagem: { id: string; ciclo_viagem_id: number; sentido: string; status: string; created_at: string; updated_at: string };
   ciclo: {
     id: number; data_viagem: string; turno: string; municipio_destino_id: number; rota_interna_id: number;
-    veiculo_id: number; motorista_id: number; status: string; expires_at: string; created_at: string; updated_at: string;
+    veiculo_id: number; motorista_id: string; status: string; expires_at: string; created_at: string; updated_at: string;
   };
   municipio_nome: string;
   veiculo_placa: string;
@@ -48,10 +52,10 @@ export function makeViagens(total: number): MockViagem[] {
     const id = index + 1;
     const day = String((index % 28) + 1).padStart(2, '0');
     return {
-      viagem: { id, ciclo_viagem_id: id, sentido: 'ida', status: 'programada', created_at: '', updated_at: '' },
+      viagem: { id: mockPublicId('via', id), ciclo_viagem_id: id, sentido: 'ida', status: 'programada', created_at: '', updated_at: '' },
       ciclo: {
         id, data_viagem: `2026-09-${day}`, turno: 'NT', municipio_destino_id: 2704302, rota_interna_id: 1,
-        veiculo_id: 1, motorista_id: 1, status: 'planejado', expires_at: '', created_at: '', updated_at: '',
+        veiculo_id: 1, motorista_id: mockPublicId('mot', 1), status: 'planejado', expires_at: '', created_at: '', updated_at: '',
       },
       municipio_nome: 'Maceio',
       veiculo_placa: 'ABC1D23',
@@ -60,8 +64,8 @@ export function makeViagens(total: number): MockViagem[] {
 }
 
 export interface MockVinculo {
-  id: number;
-  cliente_id: number;
+  id: string;
+  cliente_id: string;
   cliente_nome: string;
   tipo: string;
   turno: string;
@@ -71,7 +75,7 @@ export interface MockVinculo {
   curso: string;
   comprovante: string;
   validade: string;
-  horarios_fixos: Array<{ id: number; vinculo_id: number; dia_semana: number }>;
+  horarios_fixos: Array<{ id: number; vinculo_id: string; dia_semana: number }>;
 }
 
 /** Nomes em ordem alfabetica, como a API ordena a listagem de vinculos. */
@@ -79,8 +83,8 @@ export function makeVinculos(total: number): MockVinculo[] {
   return Array.from({ length: total }, (_, index) => {
     const id = index + 1;
     return {
-      id,
-      cliente_id: 100 + id,
+      id: mockPublicId('vin', id),
+      cliente_id: mockPublicId('cli', 100 + id),
       cliente_nome: `Cliente ${String(id).padStart(3, '0')}`,
       tipo: 'estudante',
       turno: 'NT',
@@ -90,13 +94,13 @@ export function makeVinculos(total: number): MockVinculo[] {
       curso: 'Computacao',
       comprovante: '',
       validade: '2030-12-31',
-      horarios_fixos: [1, 2, 3, 4, 5].map((dia) => ({ id: id * 10 + dia, vinculo_id: id, dia_semana: dia })),
+      horarios_fixos: [1, 2, 3, 4, 5].map((dia) => ({ id: id * 10 + dia, vinculo_id: mockPublicId('vin', id), dia_semana: dia })),
     };
   });
 }
 
 export interface MockCliente {
-  id: number;
+  id: string;
   nome: string;
   cpf: string;
   telefone: string;
@@ -109,22 +113,22 @@ export function makeClientes(total: number): MockCliente[] {
   return Array.from({ length: total }, (_, index) => {
     const id = total - index;
     return {
-      id,
+      id: mockPublicId('cli', id),
       nome: `Cliente ${id}`,
       cpf: String(30000000000 + id),
       telefone: `8299999${String(id).padStart(4, '0')}`,
       data_nasc: '2002-08-10',
-      documento_identificacao: `clientes/${id}/documento-identificacao.pdf`,
-      comprovante_residencia: `clientes/${id}/comprovante-residencia.pdf`,
+      documento_identificacao: `clientes/${mockPublicId('cli', id)}/documento-identificacao.pdf`,
+      comprovante_residencia: `clientes/${mockPublicId('cli', id)}/comprovante-residencia.pdf`,
     };
   });
 }
 
 export interface MockReserva {
-  id: number;
-  cliente_id: number;
+  id: string;
+  cliente_id: string;
   cliente_nome: string;
-  vinculo_id: number;
+  vinculo_id: string;
   data_viagem: string;
   turno: string;
   destino_id: number;
@@ -141,10 +145,10 @@ export function makeReservas(total: number): MockReserva[] {
   return Array.from({ length: total }, (_, index) => {
     const day = String(28 - (index % 28)).padStart(2, '0');
     return {
-      id: total - index,
-      cliente_id: 100 + index,
+      id: mockPublicId('res', total - index),
+      cliente_id: mockPublicId('cli', 100 + index),
       cliente_nome: `Cliente ${total - index}`,
-      vinculo_id: 200 + index,
+      vinculo_id: mockPublicId('vin', 200 + index),
       data_viagem: `2026-09-${day}`,
       turno: 'NT',
       destino_id: 300 + index,
@@ -316,7 +320,7 @@ export async function mockApi(
     if (path === '/admin/session') {
       if (!authenticated) return unauthorized(route);
       return json(route, {
-        user_id: 1,
+        user_id: mockPublicId('adm', 1),
         role: 'admin',
         expires_at: Date.now() + SESSION_TTL_MS,
       });
@@ -348,7 +352,7 @@ export async function mockApi(
     // Sem localizacao/rota calculada ainda. O catch-all abaixo responderia `[]`,
     // que e truthy — o painel entraria no ramo "tem localizacao" e quebraria ao
     // formatar velocidade. O front ja trata 404 como "ainda nao transmitiu".
-    if (/^\/viagens\/\d+\/(localizacao|rota-dinamica)$/.test(path)) {
+    if (/^\/viagens\/via_[A-Za-z0-9_-]{21}\/(localizacao|rota-dinamica)$/.test(path)) {
       return route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' });
     }
 

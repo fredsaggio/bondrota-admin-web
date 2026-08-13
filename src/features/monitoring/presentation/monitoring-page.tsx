@@ -8,11 +8,12 @@ import { useResource } from '@/shared/application/use-resource';
 import { useCursorList } from '@/shared/application/use-cursor-list';
 import { loadLiveTrip, loadMonitoringReferences, loadMonitoringTrips } from '@/features/monitoring/application/load-monitoring';
 import type { ViagemComNomes } from '@/features/operations/domain/models';
+import type { PublicId } from '@/shared/domain/public-id';
 
 const LiveMap = dynamic(() => import('@/features/monitoring/presentation/live-map'), { ssr: false, loading: () => <div className="app-loader !min-h-full"><span className="spinner" /><span>Carregando mapa</span></div> });
 
 export function MonitoringPage() {
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<PublicId | null>(null);
   const tripsLoader = useCallback((cursor?: string) => loadMonitoringTrips(cursor), []);
   const trips = useCursorList<ViagemComNomes>(tripsLoader);
 

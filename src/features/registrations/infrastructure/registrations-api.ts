@@ -72,11 +72,11 @@ export const vinculos = {
     const suffix = query.toString();
     return api<CursorPage<VinculoComCliente>>(`/vinculos/${suffix ? `?${suffix}` : ''}`);
   },
-  listByCliente: (clienteId: number) => api<Vinculo[]>(`/clientes/${clienteId}/vinculos/`),
-  get: (clienteId: number, id: number) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`),
-  create: (clienteId: number, payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/`, { method: 'POST', body: payload }),
-  update: (clienteId: number, id: number, payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`, { method: 'PUT', body: payload }),
-  remove: (clienteId: number, id: number) => api<void>(`/clientes/${clienteId}/vinculos/${id}`, { method: 'DELETE' }),
+  listByCliente: (clienteId: Cliente['id']) => api<Vinculo[]>(`/clientes/${clienteId}/vinculos/`),
+  get: (clienteId: Cliente['id'], id: Vinculo['id']) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`),
+  create: (clienteId: Cliente['id'], payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/`, { method: 'POST', body: payload }),
+  update: (clienteId: Cliente['id'], id: Vinculo['id'], payload: JsonRecord) => api<Vinculo>(`/clientes/${clienteId}/vinculos/${id}`, { method: 'PUT', body: payload }),
+  remove: (clienteId: Cliente['id'], id: Vinculo['id']) => api<void>(`/clientes/${clienteId}/vinculos/${id}`, { method: 'DELETE' }),
 };
 
 export const storage = {
