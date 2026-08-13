@@ -16,7 +16,7 @@ export interface Veiculo {
 
 export interface Motorista {
   id: number; nome: string; cpf: string; telefone: string; data_nasc: string; turno: Turno;
-  municipio_trabalho_id: number; residencia: string; foto: string;
+  municipio_trabalho_id: number; foto: string;
 }
 
 export interface HorarioTurno {

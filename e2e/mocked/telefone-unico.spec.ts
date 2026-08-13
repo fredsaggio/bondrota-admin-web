@@ -13,7 +13,6 @@ const motorista = {
   data_nasc: '1990-01-01',
   turno: 'MT',
   municipio_trabalho_id: 2611606,
-  residencia: 'Campo Alegre',
   foto: '',
 };
 

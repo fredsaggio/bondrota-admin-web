@@ -151,7 +151,6 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <DateField label="Data de nascimento" name="data_nasc" defaultValue={value(record, 'data_nasc')} autoComplete="bday" required />
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <MunicipioField defaultMunicipioId={Number(record?.municipio_trabalho_id ?? 0)} name="municipio_trabalho_id" label="Município de trabalho" />
-          <Field label="Residência" name="residencia" defaultValue={value(record, 'residencia')} span />
           <UploadField label="Foto de perfil" bucket="fotos" folder={record ? `motoristas/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
         </>}
 
@@ -262,7 +261,7 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
       // furaria o UNIQUE da coluna com o mesmo carro duas vezes.
       return { placa: limparPlaca(text('placa')), modelo: text('modelo'), categoria, capacidade, status: text('status'), ar_condicionado: data.has('ar_condicionado'), banheiro: data.has('banheiro'), persiana: data.has('persiana'), luz_leitura: data.has('luz_leitura'), tomada: data.has('tomada') };
     }
-    case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: files.photo };
+    case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), foto: files.photo };
     case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), documento_identificacao: files.documentoIdentificacao, comprovante_residencia: files.comprovanteResidencia };
     case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante: files.comprovante };
   }

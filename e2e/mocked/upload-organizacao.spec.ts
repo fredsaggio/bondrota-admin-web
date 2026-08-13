@@ -31,7 +31,6 @@ function sampleMotorista() {
     data_nasc: '1990-01-01',
     turno: 'MT',
     municipio_trabalho_id: 2611606,
-    residencia: 'Campo Alegre',
     foto: 'motoristas/42/foto.jpg',
   };
 }
@@ -43,6 +42,7 @@ test('criar motorista: a foto vai para uma pasta de espera, sem id ainda', async
 
   await expect(page.getByLabel('Município de trabalho')).toBeVisible();
   await expect(page.getByText('Foto de perfil', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Residência', { exact: true })).toHaveCount(0);
 
   await page.locator('input[type="file"]').setInputFiles({
     name: 'selfie.png',
