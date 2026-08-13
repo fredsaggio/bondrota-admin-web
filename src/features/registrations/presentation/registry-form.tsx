@@ -166,7 +166,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <Select label="Destino" name="destino_id" defaultValue={value(record, 'destino_id')} options={references.destinos.map((item) => [String(item.id), item.nome])} required />
           <Select label="Rota interna" name="rota_interna_id" defaultValue={value(record, 'rota_interna_id')} options={references.rotas.map((item) => [String(item.id), `Rota #${item.id} · ${item.paradas.length} paradas`])} required />
-          <Field label="Curso" name="curso" defaultValue={value(record, 'curso')} required />
+          <UppercaseField label="Curso" name="curso" defaultValue={value(record, 'curso')} required />
           <Field label="Validade" name="validade" type="date" defaultValue={value(record, 'validade')} required />
           <Weekdays defaultValues={(record?.horarios_fixos as Array<{ dia_semana: number }> | undefined)?.map((item) => item.dia_semana) ?? []} />
           {/* Nome fixo só faz sentido editando um vínculo já existente — nesse
@@ -224,9 +224,11 @@ function Field({ label, name, type = 'text', step, defaultValue, value, onChange
   return <label className={span ? 'sm:col-span-2' : ''}><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><input className="field" name={name} type={type} step={step} {...(controlled ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })} required={required} /></label>;
 }
 
-/** Nome de pessoa (cliente/motorista): bloqueia dígitos e símbolos ao digitar.
- * Nomes de lugar (destino, parada) usam o Field normal, que não tem essa
- * restrição — números fazem parte de endereços legítimos. */
+/** Nome de pessoa (cliente/motorista): bloqueia dígitos e símbolos ao digitar,
+ * e força maiúscula — o backend salva maiúsculo de qualquer forma, então
+ * mostrar isso ao vivo evita a surpresa de "digitei minúsculo, salvou
+ * diferente". Nomes de lugar (destino, parada) usam o Field normal, que não
+ * tem essa restrição — números fazem parte de endereços legítimos. */
 function PersonNameField({ label, name, defaultValue, required, span }: { label: string; name: string; defaultValue?: string; required?: boolean; span?: boolean }) {
   return (
     <label className={span ? 'sm:col-span-2' : ''}>
@@ -238,8 +240,31 @@ function PersonNameField({ label, name, defaultValue, required, span }: { label:
         defaultValue={defaultValue}
         required={required}
         onChange={(event) => {
-          const clean = event.target.value.replace(/[^\p{L}\s'-]/gu, '');
+          const clean = event.target.value.replace(/[^\p{L}\s'-]/gu, '').toUpperCase();
           if (clean !== event.target.value) event.target.value = clean;
+        }}
+      />
+    </label>
+  );
+}
+
+/** Maiúscula automática ao digitar, sem restringir quais caracteres entram —
+ * curso pode ter número ou hífen ("Técnico em TI"), diferente de nome de
+ * pessoa. O backend também normaliza para maiúsculo; mostrar isso ao vivo
+ * evita a mesma surpresa do campo de nome. */
+function UppercaseField({ label, name, defaultValue, required, span }: { label: string; name: string; defaultValue?: string; required?: boolean; span?: boolean }) {
+  return (
+    <label className={span ? 'sm:col-span-2' : ''}>
+      <span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span>
+      <input
+        className="field"
+        name={name}
+        type="text"
+        defaultValue={defaultValue}
+        required={required}
+        onChange={(event) => {
+          const upper = event.target.value.toUpperCase();
+          if (upper !== event.target.value) event.target.value = upper;
         }}
       />
     </label>
