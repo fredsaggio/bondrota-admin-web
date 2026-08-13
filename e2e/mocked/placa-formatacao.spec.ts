@@ -19,6 +19,15 @@ async function abrirFormulario(page: Page) {
 }
 
 const placa = (page: Page) => page.locator('input[name="placa"]');
+const modelo = (page: Page) => page.locator('input[name="modelo"]');
+
+test('modelo aceita letras e números, mas bloqueia caracteres especiais', async ({ page }) => {
+  await abrirFormulario(page);
+
+  await modelo(page).pressSequentially('Ônibus #1722/ Urbano');
+
+  await expect(modelo(page)).toHaveValue('Ônibus 1722 Urbano');
+});
 
 test('padrao antigo ganha hifen conforme digita', async ({ page }) => {
   await abrirFormulario(page);

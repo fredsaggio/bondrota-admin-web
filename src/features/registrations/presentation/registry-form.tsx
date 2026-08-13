@@ -125,7 +125,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
               Sem placeholder de propósito: um exemplo só mostraria um dos dois
               formatos válidos, e a máscara já guia o admin ao digitar. */}
           <MaskedField label="Placa" name="placa" defaultValue={value(record, 'placa')} format={formatarPlaca} maxLength={8} inputMode="text" required />
-          <Field label="Modelo" name="modelo" defaultValue={value(record, 'modelo')} required />
+          <AlphanumericField label="Modelo" name="modelo" defaultValue={value(record, 'modelo')} required />
           <Select label="Categoria" name="categoria" defaultValue={value(record, 'categoria')} options={[["executivo", "Executivo - 46 lugares"], ["escolar", "Escolar - 24 lugares"], ["carro_7_lugares", "Carro - 7 lugares"]]} required />
           <Select label="Status" name="status" defaultValue={value(record, 'status') || 'ativo'} options={[["ativo", "Ativo"], ["inativo", "Inativo"], ["manutencao", "Manutenção"]]} required />
           <div className="sm:col-span-2"><p className="field-label">Comodidades</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -227,6 +227,27 @@ function Field({ label, name, type = 'text', step, defaultValue, value, onChange
 
 function DateField({ label, name, defaultValue, required, autoComplete }: { label: string; name: string; defaultValue?: string; required?: boolean; autoComplete?: string }) {
   return <label><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><DateInput name={name} defaultValue={defaultValue} required={required} autoComplete={autoComplete} /></label>;
+}
+
+/** Modelo do veículo: aceita letras, números e os espaços necessários para
+ * nomes compostos, removendo símbolos tanto na digitação quanto na colagem. */
+function AlphanumericField({ label, name, defaultValue, required }: { label: string; name: string; defaultValue?: string; required?: boolean }) {
+  return (
+    <label>
+      <span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span>
+      <input
+        className="field"
+        name={name}
+        type="text"
+        defaultValue={defaultValue}
+        required={required}
+        onChange={(event) => {
+          const clean = event.target.value.replace(/[^\p{L}\p{N}\s]/gu, '');
+          if (clean !== event.target.value) event.target.value = clean;
+        }}
+      />
+    </label>
+  );
 }
 
 /** Texto alfabético para nomes de pessoas e cursos: bloqueia dígitos e símbolos
