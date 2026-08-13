@@ -150,9 +150,9 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
           <DateField label="Data de nascimento" name="data_nasc" defaultValue={value(record, 'data_nasc')} autoComplete="bday" required />
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
-          <MunicipioField defaultMunicipioId={Number(record?.municipio_trabalho_id ?? 0)} name="municipio_trabalho_id" />
+          <MunicipioField defaultMunicipioId={Number(record?.municipio_trabalho_id ?? 0)} name="municipio_trabalho_id" label="Município de trabalho" />
           <Field label="Residência" name="residencia" defaultValue={value(record, 'residencia')} span />
-          <UploadField label="Foto" bucket="fotos" folder={record ? `motoristas/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
+          <UploadField label="Foto de perfil" bucket="fotos" folder={record ? `motoristas/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
         </>}
 
         {entity === 'clientes' && <>
@@ -356,7 +356,7 @@ function Checkbox({ name, label, defaultChecked }: { name: string; label: string
 /** `onSelect` avisa quem precisa reagir à escolha (hoje só o mapa dos destinos).
  * Dispara no evento do select, nunca na montagem — então abrir um registro para
  * edição não reenquadra o mapa por cima da coordenada já salva. */
-function MunicipioField({ defaultMunicipioId, name = 'municipio_id', onSelect }: { defaultMunicipioId: number; name?: string; onSelect?(municipio: { nome: string; uf: string } | null): void }) {
+function MunicipioField({ defaultMunicipioId, name = 'municipio_id', label = 'Município', onSelect }: { defaultMunicipioId: number; name?: string; label?: string; onSelect?(municipio: { nome: string; uf: string } | null): void }) {
   const [uf, setUF] = useState('AL');
   const [municipioId, setMunicipioId] = useState(defaultMunicipioId ? String(defaultMunicipioId) : '');
   const [items, setItems] = useState<Municipio[]>([]);
@@ -390,7 +390,7 @@ function MunicipioField({ defaultMunicipioId, name = 'municipio_id', onSelect }:
     return () => { active = false; window.clearTimeout(timeout); };
   }, [uf]);
   const currentIsListed = items.some((item) => String(item.codigo_ibge) === municipioId);
-  return <div className="grid grid-cols-[88px_1fr] gap-2 sm:col-span-2"><label><span className="field-label">UF</span><select className="field" value={uf} onChange={(event) => { setItems([]); setMunicipioId(''); onSelect?.(null); setUF(event.target.value); }}>{ufs.map((item) => <option key={item}>{item}</option>)}</select></label><label><span className="field-label">Município <b className="text-red-500">*</b></span><select className="field" name={name} value={municipioId} onChange={(event) => { setMunicipioId(event.target.value); const found = items.find((item) => String(item.codigo_ibge) === event.target.value); onSelect?.(found ? { nome: found.nome, uf } : null); }} required disabled={loading || loadError}><option value="">{loading ? 'Carregando...' : loadError ? 'Falha ao carregar' : 'Selecione'}</option>{municipioId && !currentIsListed && <option value={municipioId}>Município atual · IBGE {municipioId}</option>}{items.map((item) => <option key={item.codigo_ibge} value={item.codigo_ibge}>{item.nome}</option>)}</select></label></div>;
+  return <div className="grid grid-cols-[88px_1fr] gap-2 sm:col-span-2"><label><span className="field-label">UF</span><select className="field" value={uf} onChange={(event) => { setItems([]); setMunicipioId(''); onSelect?.(null); setUF(event.target.value); }}>{ufs.map((item) => <option key={item}>{item}</option>)}</select></label><label><span className="field-label">{label} <b className="text-red-500">*</b></span><select className="field" name={name} value={municipioId} onChange={(event) => { setMunicipioId(event.target.value); const found = items.find((item) => String(item.codigo_ibge) === event.target.value); onSelect?.(found ? { nome: found.nome, uf } : null); }} required disabled={loading || loadError}><option value="">{loading ? 'Carregando...' : loadError ? 'Falha ao carregar' : 'Selecione'}</option>{municipioId && !currentIsListed && <option value={municipioId}>Município atual · IBGE {municipioId}</option>}{items.map((item) => <option key={item.codigo_ibge} value={item.codigo_ibge}>{item.nome}</option>)}</select></label></div>;
 }
 
 function RouteStops({ stops, selected, onChange }: { stops: Parada[]; selected: number[]; onChange(value: number[]): void }) {

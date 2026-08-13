@@ -41,6 +41,9 @@ test('criar motorista: a foto vai para uma pasta de espera, sem id ainda', async
   await page.getByRole('button', { name: 'Motoristas', exact: true }).click();
   await page.getByRole('button', { name: 'Novo motorista' }).click();
 
+  await expect(page.getByLabel('Município de trabalho')).toBeVisible();
+  await expect(page.getByText('Foto de perfil', { exact: true })).toBeVisible();
+
   await page.locator('input[type="file"]').setInputFiles({
     name: 'selfie.png',
     mimeType: 'image/png',
