@@ -161,7 +161,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
           <DateField label="Data de nascimento" name="data_nasc" defaultValue={value(record, 'data_nasc')} autoComplete="bday" required />
           <UploadField
-            label="Documento de identificação (RG ou CIN)"
+            label="Documento de identificação"
             bucket="documentos"
             folder={record ? `clientes/${record.id}` : `_novo/${novoUploadId}`}
             filename="documento-identificacao"
