@@ -242,7 +242,7 @@ function AlphanumericField({ label, name, defaultValue, required }: { label: str
         defaultValue={defaultValue}
         required={required}
         onChange={(event) => {
-          const clean = event.target.value.replace(/[^\p{L}\p{N}\s]/gu, '');
+          const clean = event.target.value.replace(/[^\p{L}\p{N} ]/gu, '');
           if (clean !== event.target.value) event.target.value = clean;
         }}
       />
@@ -264,7 +264,7 @@ function UppercaseLettersField({ label, name, defaultValue, required, span }: { 
         defaultValue={defaultValue}
         required={required}
         onChange={(event) => {
-          const clean = event.target.value.replace(/[^\p{L}\s'-]/gu, '').toUpperCase();
+          const clean = event.target.value.replace(/[^\p{L} '-]/gu, '').toUpperCase();
           if (clean !== event.target.value) event.target.value = clean;
         }}
       />
