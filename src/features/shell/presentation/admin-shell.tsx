@@ -18,7 +18,7 @@ const navigation = [
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { session, logout } = useAuth();
+  const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -59,10 +59,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         {!collapsed && (
           <div className="mb-3 flex items-center gap-3 px-2">
             <div className="grid h-9 w-9 place-items-center rounded-full bg-[#426fa8] text-xs font-bold">A</div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold">Administrador</p>
-              <p className="truncate text-[10px] text-slate-400">ID {session?.userId}</p>
-            </div>
+            <p className="text-xs font-semibold">Administrador</p>
           </div>
         )}
         <button className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-slate-300 hover:bg-white/7 hover:text-white" onClick={() => { setChangingPassword(true); setMobileOpen(false); }} title={collapsed ? 'Trocar senha' : undefined}>
