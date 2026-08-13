@@ -70,6 +70,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
   const [documentoIdentificacao, setDocumentoIdentificacao] = useState(value(record, 'documento_identificacao'));
   const [comprovanteResidencia, setComprovanteResidencia] = useState(value(record, 'comprovante_residencia'));
   const [comprovante, setComprovante] = useState(value(record, 'comprovante'));
+  const [tipoVinculo, setTipoVinculo] = useState<'estudante' | 'estagio'>(() => value(record, 'tipo') === 'estagio' ? 'estagio' : 'estudante');
   const [localError, setLocalError] = useState('');
   // Pasta de espera usada só ao criar (o registro ainda não tem id — o
   // backend organiza o arquivo no caminho definitivo depois que ele é salvo).
@@ -194,7 +195,14 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
             disabled={Boolean(record)}
             placeholder="Buscar por nome, CPF ou telefone"
           />
-          <Select label="Tipo" name="tipo" defaultValue={value(record, 'tipo') || 'estudante'} options={[["estudante", "Estudante"], ["estagio", "Estágio"]]} required />
+          <Select
+            label="Tipo"
+            name="tipo"
+            defaultValue={tipoVinculo}
+            options={[["estudante", "Estudante"], ["estagio", "Estágio"]]}
+            onChange={(tipo) => setTipoVinculo(tipo === 'estagio' ? 'estagio' : 'estudante')}
+            required
+          />
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <Select label="Destino" name="destino_id" defaultValue={value(record, 'destino_id')} options={references.destinos.map((item) => [String(item.id), item.nome])} required />
           <Select label="Rota interna" name="rota_interna_id" defaultValue={value(record, 'rota_interna_id')} options={references.rotas.map((item) => [String(item.id), `Rota #${item.id} · ${item.paradas.length} paradas`])} required />
@@ -206,13 +214,18 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
               backend é quem monta o nome definitivo com o tipo enviado no
               formulário, então "comprovante" solto na pasta de espera basta. */}
           <UploadField
-            label="Comprovante"
+            label={tipoVinculo === 'estagio'
+              ? 'Termo de Compromisso de Estágio (TCE)'
+              : 'Comprovante de matrícula ou vínculo acadêmico'}
             bucket="documentos"
             folder={record ? `clientes/${record.cliente_id}/vinculos/${record.id}` : `_novo/${novoUploadId}`}
             filename={record ? `comprovante-${value(record, 'tipo')}` : 'comprovante'}
-            accept="application/pdf,image/*"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
             current={comprovante}
             onUploaded={setComprovante}
+            hint={tipoVinculo === 'estagio'
+              ? 'Envie o TCE vigente e completo, firmado pelo estudante, pela concedente e pela instituição de ensino. Aceitamos PDF, JPG, PNG ou WebP.'
+              : 'Envie um comprovante de matrícula ou uma declaração de vínculo vigente, emitida pela instituição, com nome do aluno, curso e período/semestre. Aceitamos PDF, JPG, PNG ou WebP.'}
           />
         </>}
       </div>
@@ -332,8 +345,8 @@ function MaskedField({ label, name, defaultValue, required, format, placeholder,
   );
 }
 
-function Select({ label, name, options, defaultValue, required, disabled }: { label: string; name: string; options: string[][]; defaultValue?: string; required?: boolean; disabled?: boolean }) {
-  return <label><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><select className="field" name={name} defaultValue={defaultValue} required={required} disabled={disabled}><option value="">Selecione</option>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select>{disabled && <input type="hidden" name={name} value={defaultValue} />}</label>;
+function Select({ label, name, options, defaultValue, required, disabled, onChange }: { label: string; name: string; options: string[][]; defaultValue?: string; required?: boolean; disabled?: boolean; onChange?(value: string): void }) {
+  return <label><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><select className="field" name={name} defaultValue={defaultValue} required={required} disabled={disabled} onChange={(event) => onChange?.(event.target.value)}><option value="">Selecione</option>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select>{disabled && <input type="hidden" name={name} value={defaultValue} />}</label>;
 }
 
 function Checkbox({ name, label, defaultChecked }: { name: string; label: string; defaultChecked: boolean }) {
