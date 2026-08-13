@@ -94,7 +94,7 @@ test('cliente não tem foto e envia os dois documentos obrigatórios', async ({ 
 
   await expect(page.getByLabel('Foto', { exact: true })).toHaveCount(0);
 
-  await page.getByLabel('Documento de identificação (RG ou CIN)').setInputFiles({
+  await page.getByLabel('Documento de identificação').setInputFiles({
     name: 'identidade.png',
     mimeType: 'image/png',
     buffer: PNG_1X1,
