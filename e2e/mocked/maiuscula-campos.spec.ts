@@ -38,13 +38,12 @@ test('nome do cliente vira maiúsculo ao digitar', async ({ page }) => {
   await expect(page.locator('input[name="nome"]')).toHaveValue('MARIA SOUZA');
 });
 
-test('curso do vínculo vira maiúsculo ao digitar, sem bloquear número', async ({ page }) => {
+test('curso do vínculo vira maiúsculo e bloqueia números ao digitar', async ({ page }) => {
   await abrirCadastros(page);
   await page.getByRole('button', { name: 'Vínculos', exact: true }).click();
   await page.getByRole('button', { name: 'Novo vínculo' }).click();
 
   await page.locator('input[name="curso"]').pressSequentially('técnico em ti 2');
 
-  // Diferente do campo de nome, curso não filtra dígito — só força maiúscula.
-  await expect(page.locator('input[name="curso"]')).toHaveValue('TÉCNICO EM TI 2');
+  await expect(page.locator('input[name="curso"]')).toHaveValue('TÉCNICO EM TI ');
 });

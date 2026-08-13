@@ -6,6 +6,7 @@ import { clientes, municipios, storage } from '@/features/registrations/infrastr
 import { formatarPlaca, limparPlaca } from '@/features/registrations/domain/placa';
 import { LocationPicker } from '@/features/registrations/presentation/location-picker';
 import { AsyncCombobox } from '@/shared/presentation/components/async-combobox';
+import { DateInput } from '@/shared/presentation/components/date-input';
 import type { Municipio, Parada } from '@/features/registrations/domain/models';
 import type { EntityKey, RegistryRecord, RegistryReferences } from '@/features/registrations/domain/registry';
 
@@ -136,7 +137,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <UppercaseLettersField label="Nome completo" name="nome" defaultValue={value(record, 'nome')} required span />
           {!record && <><MaskedField label="CPF" name="cpf" format={formatCPF} maxLength={14} placeholder="000.000.000-00" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
           <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
-          <Field label="Data de nascimento" name="data_nasc" type="date" defaultValue={value(record, 'data_nasc')} required />
+          <DateField label="Data de nascimento" name="data_nasc" defaultValue={value(record, 'data_nasc')} autoComplete="bday" required />
           <Select label="Turno" name="turno" defaultValue={value(record, 'turno')} options={turnos} required />
           <MunicipioField defaultMunicipioId={Number(record?.municipio_trabalho_id ?? 0)} name="municipio_trabalho_id" />
           <Field label="Residência" name="residencia" defaultValue={value(record, 'residencia')} span />
@@ -147,7 +148,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <UppercaseLettersField label="Nome completo" name="nome" defaultValue={value(record, 'nome')} required span />
           {!record && <><MaskedField label="CPF" name="cpf" format={formatCPF} maxLength={14} placeholder="000.000.000-00" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
           <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
-          <Field label="Data de nascimento" name="data_nasc" type="date" defaultValue={value(record, 'data_nasc')} required />
+          <DateField label="Data de nascimento" name="data_nasc" defaultValue={value(record, 'data_nasc')} autoComplete="bday" required />
           <UploadField label="Foto" bucket="fotos" folder={record ? `clientes/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
         </>}
 
@@ -167,7 +168,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           <Select label="Destino" name="destino_id" defaultValue={value(record, 'destino_id')} options={references.destinos.map((item) => [String(item.id), item.nome])} required />
           <Select label="Rota interna" name="rota_interna_id" defaultValue={value(record, 'rota_interna_id')} options={references.rotas.map((item) => [String(item.id), `Rota #${item.id} · ${item.paradas.length} paradas`])} required />
           <UppercaseLettersField label="Curso" name="curso" defaultValue={value(record, 'curso')} required />
-          <Field label="Validade" name="validade" type="date" defaultValue={value(record, 'validade')} required />
+          <DateField label="Validade" name="validade" defaultValue={value(record, 'validade')} required />
           <Weekdays defaultValues={(record?.horarios_fixos as Array<{ dia_semana: number }> | undefined)?.map((item) => item.dia_semana) ?? []} />
           {/* Nome fixo só faz sentido editando um vínculo já existente — nesse
               caso o tipo gravado é o mesmo que está na tela. Ao criar, o
@@ -222,6 +223,10 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
 function Field({ label, name, type = 'text', step, defaultValue, value, onChange, required, span }: { label: string; name: string; type?: string; step?: string; defaultValue?: string; value?: string; onChange?(next: string): void; required?: boolean; span?: boolean }) {
   const controlled = value !== undefined;
   return <label className={span ? 'sm:col-span-2' : ''}><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><input className="field" name={name} type={type} step={step} {...(controlled ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })} required={required} /></label>;
+}
+
+function DateField({ label, name, defaultValue, required, autoComplete }: { label: string; name: string; defaultValue?: string; required?: boolean; autoComplete?: string }) {
+  return <label><span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span><DateInput name={name} defaultValue={defaultValue} required={required} autoComplete={autoComplete} /></label>;
 }
 
 /** Texto alfabético para nomes de pessoas e cursos: bloqueia dígitos e símbolos

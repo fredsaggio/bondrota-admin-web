@@ -7,6 +7,7 @@ import { ApiError } from '@/shared/infrastructure/http/api-client';
 import { useResource } from '@/shared/application/use-resource';
 import { useCursorList } from '@/shared/application/use-cursor-list';
 import { useDebouncedValue } from '@/shared/application/use-debounced-value';
+import { DateInput } from '@/shared/presentation/components/date-input';
 import { loadOperations, type OperationsData } from '@/features/operations/application/load-operations';
 import { reservas, viagens } from '@/features/operations/infrastructure/operations-api';
 import type { FalhaPlanejamento, ReservaComNomes, RotaDinamica, StatusPresenca, ViagemComNomes, ViagemHorario, ViagemReserva } from '@/features/operations/domain/models';
@@ -111,8 +112,8 @@ export function OperationsPage() {
 function DateRange({ value, onChange }: { value: { inicio: string; fim: string }; onChange(value: { inicio: string; fim: string }): void }) {
   return (
     <div className="flex items-end gap-2">
-      <label className="text-[10px] uppercase text-slate-400">De<input type="date" className="field !min-h-9 !py-1 text-xs" value={value.inicio} onChange={(event) => onChange({ ...value, inicio: event.target.value })} /></label>
-      <label className="text-[10px] uppercase text-slate-400">Até<input type="date" className="field !min-h-9 !py-1 text-xs" value={value.fim} onChange={(event) => onChange({ ...value, fim: event.target.value })} /></label>
+      <label className="text-[10px] uppercase text-slate-400">De<DateInput key={`inicio-${value.inicio}`} className="field !min-h-9 !py-1 text-xs" defaultValue={value.inicio} onChange={(inicio) => onChange({ ...value, inicio })} /></label>
+      <label className="text-[10px] uppercase text-slate-400">Até<DateInput key={`fim-${value.fim}`} className="field !min-h-9 !py-1 text-xs" defaultValue={value.fim} onChange={(fim) => onChange({ ...value, fim })} /></label>
       {(value.inicio || value.fim) && <button className="btn btn-secondary !min-h-9 !py-1 text-xs" onClick={() => onChange({ inicio: '', fim: '' })}>Limpar</button>}
     </div>
   );

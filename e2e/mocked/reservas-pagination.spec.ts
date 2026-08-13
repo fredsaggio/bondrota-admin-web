@@ -76,8 +76,8 @@ test('debounce evita uma requisicao por tecla digitada', async ({ page }) => {
 test('filtro de intervalo de data vira query param e recorta o resultado', async ({ page }) => {
   await expect(rows(page)).toHaveCount(PAGE_SIZE);
 
-  await dateFrom(page).fill('2026-09-28');
-  await dateTo(page).fill('2026-09-28');
+  await dateFrom(page).fill('28/09/2026');
+  await dateTo(page).fill('28/09/2026');
 
   // Preencher os dois campos dispara duas buscas; espera a que ja leva o intervalo
   // completo, em vez de afirmar sobre a requisicao intermediaria.
