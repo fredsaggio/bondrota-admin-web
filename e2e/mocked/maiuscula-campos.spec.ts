@@ -48,16 +48,16 @@ test('curso do vínculo vira maiúsculo e bloqueia números ao digitar', async (
   await expect(page.locator('input[name="curso"]')).toHaveValue('TÉCNICO EM TI ');
 });
 
-test('explica qual comprovante enviar conforme o tipo do vínculo', async ({ page }) => {
+test('identifica o comprovante conforme o tipo do vínculo sem texto auxiliar', async ({ page }) => {
   await abrirCadastros(page);
   await page.getByRole('button', { name: 'Vínculos', exact: true }).click();
   await page.getByRole('button', { name: 'Novo vínculo' }).click();
 
   await expect(page.getByText('Comprovante de matrícula ou vínculo acadêmico', { exact: true })).toBeVisible();
-  await expect(page.getByText(/nome do aluno, curso e período\/semestre/)).toBeVisible();
+  await expect(page.getByText(/nome do aluno, curso e período\/semestre/)).toHaveCount(0);
 
   await page.getByLabel('Tipo').selectOption('estagio');
 
   await expect(page.getByText('Termo de Compromisso de Estágio (TCE)', { exact: true })).toBeVisible();
-  await expect(page.getByText(/firmado pelo estudante, pela concedente e pela instituição de ensino/)).toBeVisible();
+  await expect(page.getByText(/firmado pelo estudante, pela concedente e pela instituição de ensino/)).toHaveCount(0);
 });

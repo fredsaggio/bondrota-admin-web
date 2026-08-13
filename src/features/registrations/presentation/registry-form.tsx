@@ -222,9 +222,6 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
             accept="application/pdf,image/jpeg,image/png,image/webp"
             current={comprovante}
             onUploaded={setComprovante}
-            hint={tipoVinculo === 'estagio'
-              ? 'Envie o TCE vigente e completo, firmado pelo estudante, pela concedente e pela instituição de ensino. Aceitamos PDF, JPG, PNG ou WebP.'
-              : 'Envie um comprovante de matrícula ou uma declaração de vínculo vigente, emitida pela instituição, com nome do aluno, curso e período/semestre. Aceitamos PDF, JPG, PNG ou WebP.'}
           />
         </>}
       </div>
