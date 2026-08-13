@@ -165,7 +165,7 @@ function json(route: Route, body: unknown, status = 200) {
 }
 
 function unauthorized(route: Route) {
-  return route.fulfill({ status: 401, contentType: 'text/plain', body: 'unauthorized' });
+  return route.fulfill({ status: 401, contentType: 'text/plain', body: 'Sua sessão expirou. Entre novamente.' });
 }
 
 /** Municipios de AL usados pelo seletor dos destinos. */
@@ -280,7 +280,7 @@ export async function mockApi(
         return route.fulfill({
           status: 401,
           contentType: 'text/plain',
-          body: 'invalid email or password',
+          body: 'E-mail ou senha inválidos.',
         });
       }
       authenticated = true;
@@ -299,7 +299,7 @@ export async function mockApi(
       if (!authenticated) return unauthorized(route);
       const body = request.postDataJSON() as { senha_atual?: string; nova_senha?: string } | null;
       if (body?.senha_atual !== TEST_ADMIN.senha) {
-        return route.fulfill({ status: 403, contentType: 'text/plain', body: 'senha atual incorreta' });
+        return route.fulfill({ status: 403, contentType: 'text/plain', body: 'A senha atual está incorreta.' });
       }
       if ((body?.nova_senha ?? '').length < 8) {
         return route.fulfill({
