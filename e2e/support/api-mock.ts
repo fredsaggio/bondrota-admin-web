@@ -101,7 +101,8 @@ export interface MockCliente {
   cpf: string;
   telefone: string;
   data_nasc: string;
-  foto: string;
+  documento_identificacao: string;
+  comprovante_residencia: string;
 }
 
 export function makeClientes(total: number): MockCliente[] {
@@ -113,7 +114,8 @@ export function makeClientes(total: number): MockCliente[] {
       cpf: String(30000000000 + id),
       telefone: `8299999${String(id).padStart(4, '0')}`,
       data_nasc: '2002-08-10',
-      foto: '',
+      documento_identificacao: `clientes/${id}/documento-identificacao.pdf`,
+      comprovante_residencia: `clientes/${id}/comprovante-residencia.pdf`,
     };
   });
 }

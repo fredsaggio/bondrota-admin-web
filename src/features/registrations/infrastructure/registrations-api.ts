@@ -87,9 +87,9 @@ export const storage = {
     bucket: string; path: string; signed_url: string; expires_in_seconds: number;
   }>('/storage/signed-download-url', { method: 'POST', body: payload }),
   /**
-   * `filename` é fixo por slot (ex.: "foto", "comprovante-estudante"), não um
+   * `filename` é fixo por slot (ex.: "foto", "documento-identificacao"), não um
    * nome gerado por upload — com `upsert`, reenviar o mesmo slot substitui o
-   * arquivo anterior em vez de acumular um órfão a cada troca de foto. O
+   * arquivo anterior em vez de acumular um órfão a cada substituição. O
    * caminho (`folder`) já vem pronto de quem chama: caminho definitivo quando
    * o registro já tem ID, ou uma pasta de espera quando ainda não tem — nesse
    * caso o backend move para o lugar certo depois que o registro é criado.

@@ -67,7 +67,10 @@ async function searchClientes(term: string) {
 export function RegistryForm({ entity, record, references, busy, error, onSubmit, onCancel }: Props) {
   const [routeStops, setRouteStops] = useState<number[]>(() => routeStopIds(record));
   const [photo, setPhoto] = useState(value(record, 'foto'));
+  const [documentoIdentificacao, setDocumentoIdentificacao] = useState(value(record, 'documento_identificacao'));
+  const [comprovanteResidencia, setComprovanteResidencia] = useState(value(record, 'comprovante_residencia'));
   const [comprovante, setComprovante] = useState(value(record, 'comprovante'));
+  const [localError, setLocalError] = useState('');
   // Pasta de espera usada só ao criar (o registro ainda não tem id — o
   // backend organiza o arquivo no caminho definitivo depois que ele é salvo).
   // Um id por campo, gerado uma vez e reaproveitado a cada reenvio dentro da
@@ -89,8 +92,15 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (entity === 'clientes' && (!documentoIdentificacao || !comprovanteResidencia)) {
+      setLocalError('Envie o documento de identificação e o comprovante de residência.');
+      return;
+    }
+    setLocalError('');
     const data = new FormData(event.currentTarget);
-    const payload = buildPayload(entity, data, record, routeStops, photo, comprovante);
+    const payload = buildPayload(entity, data, record, routeStops, {
+      photo, documentoIdentificacao, comprovanteResidencia, comprovante,
+    });
     await onSubmit(payload);
   }
 
@@ -149,7 +159,28 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
           {!record && <><MaskedField label="CPF" name="cpf" format={formatCPF} maxLength={14} placeholder="000.000.000-00" required /><Field label="Senha inicial" name="senha" type="password" required /></>}
           <MaskedField label="Telefone" name="telefone" defaultValue={value(record, 'telefone')} format={formatTelefone} maxLength={15} placeholder="(00) 00000-0000" />
           <DateField label="Data de nascimento" name="data_nasc" defaultValue={value(record, 'data_nasc')} autoComplete="bday" required />
-          <UploadField label="Foto" bucket="fotos" folder={record ? `clientes/${record.id}` : `_novo/${novoUploadId}`} filename="foto" accept="image/*" current={photo} onUploaded={setPhoto} />
+          <UploadField
+            label="Documento de identificação (RG ou CIN)"
+            bucket="documentos"
+            folder={record ? `clientes/${record.id}` : `_novo/${novoUploadId}`}
+            filename="documento-identificacao"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            current={documentoIdentificacao}
+            onUploaded={(path) => { setDocumentoIdentificacao(path); setLocalError(''); }}
+            hint="Envie um PDF ou uma imagem legível do documento."
+            required
+          />
+          <UploadField
+            label="Comprovante de residência"
+            bucket="documentos"
+            folder={record ? `clientes/${record.id}` : `_novo/${novoUploadId}`}
+            filename="comprovante-residencia"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            current={comprovanteResidencia}
+            onUploaded={(path) => { setComprovanteResidencia(path); setLocalError(''); }}
+            hint="Use um comprovante legível emitido há no máximo 3 meses."
+            required
+          />
         </>}
 
         {entity === 'vinculos' && <>
@@ -186,7 +217,7 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
         </>}
       </div>
 
-      {error && <div className="mx-5 mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {(error || localError) && <div className="mx-5 mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error || localError}</div>}
       <footer className="flex justify-end gap-2 border-t border-[#e4e9ef] px-5 py-4">
         <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
         <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Salvando...' : record ? 'Salvar alterações' : 'Criar registro'}</button>
@@ -195,7 +226,14 @@ export function RegistryForm({ entity, record, references, busy, error, onSubmit
   );
 }
 
-function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord | null, routeStops: number[], photo: string, comprovante: string): Record<string, unknown> {
+interface UploadedFiles {
+  photo: string;
+  documentoIdentificacao: string;
+  comprovanteResidencia: string;
+  comprovante: string;
+}
+
+function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord | null, routeStops: number[], files: UploadedFiles): Record<string, unknown> {
   const text = (name: string) => String(data.get(name) ?? '').trim();
   const number = (name: string) => Number(data.get(name));
   const digits = (name: string) => onlyDigits(String(data.get(name) ?? ''));
@@ -211,9 +249,9 @@ function buildPayload(entity: EntityKey, data: FormData, record: RegistryRecord 
       // furaria o UNIQUE da coluna com o mesmo carro duas vezes.
       return { placa: limparPlaca(text('placa')), modelo: text('modelo'), categoria, capacidade, status: text('status'), ar_condicionado: data.has('ar_condicionado'), banheiro: data.has('banheiro'), persiana: data.has('persiana'), luz_leitura: data.has('luz_leitura'), tomada: data.has('tomada') };
     }
-    case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: photo };
-    case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), foto: photo };
-    case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante };
+    case 'motoristas': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), turno: text('turno'), municipio_trabalho_id: number('municipio_trabalho_id'), residencia: text('residencia'), foto: files.photo };
+    case 'clientes': return { nome: text('nome'), ...(record ? {} : { cpf: digits('cpf'), senha: text('senha') }), telefone: digits('telefone'), data_nasc: text('data_nasc'), documento_identificacao: files.documentoIdentificacao, comprovante_residencia: files.comprovanteResidencia };
+    case 'vinculos': return { cliente_id: record ? Number(record.cliente_id) : number('cliente_id'), tipo: text('tipo'), turno: text('turno'), destino_id: number('destino_id'), rota_interna_id: number('rota_interna_id'), curso: text('curso'), validade: text('validade'), horarios_fixos: data.getAll('horarios_fixos').map(Number), comprovante: files.comprovante };
   }
 }
 
@@ -353,7 +391,7 @@ function Weekdays({ defaultValues }: { defaultValues: number[] }) {
   return <div className="sm:col-span-2"><span className="field-label">Dias fixos</span><div className="grid grid-cols-5 gap-2">{['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map((label, index) => <label key={label} className="flex min-h-10 flex-col items-center justify-center rounded-md border border-[#dfe5ed] text-xs text-slate-600"><input className="mb-1 accent-[#426fa8]" type="checkbox" name="horarios_fixos" value={index + 1} defaultChecked={defaultValues.includes(index + 1)} />{label}</label>)}</div></div>;
 }
 
-function UploadField({ label, bucket, folder, filename, accept, current, onUploaded }: { label: string; bucket: 'fotos' | 'documentos'; folder: string; filename: string; accept: string; current: string; onUploaded(value: string): void }) {
+function UploadField({ label, bucket, folder, filename, accept, current, onUploaded, hint, required }: { label: string; bucket: 'fotos' | 'documentos'; folder: string; filename: string; accept: string; current: string; onUploaded(value: string): void; hint?: string; required?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState(false);
@@ -377,19 +415,19 @@ function UploadField({ label, bucket, folder, filename, accept, current, onUploa
   };
   return (
     <div className="sm:col-span-2">
-      <span className="field-label">{label}</span>
+      <span className="field-label">{label}{required && <b className="ml-1 text-red-500">*</b>}</span>
       <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4">
         <FileUp size={19} className="text-[#426fa8]" />
         <span className="min-w-0 flex-1">
           <b className="block truncate text-xs text-slate-600">{busy ? 'Enviando...' : current || 'Selecionar arquivo'}</b>
-          {error && <small className="text-red-600">{error}</small>}
+          {error ? <small className="text-red-600">{error}</small> : hint && <small className="text-slate-500">{hint}</small>}
         </span>
         {current && (
           <button type="button" className="icon-btn !h-8 !w-8 shrink-0" onClick={(event) => void view(event)} disabled={viewing} title="Ver arquivo">
             <Eye size={14} />
           </button>
         )}
-        <input className="hidden" type="file" accept={accept} disabled={busy} onChange={(event) => void upload(event.target.files?.[0])} />
+        <input className="hidden" type="file" accept={accept} disabled={busy} aria-label={label} aria-required={required} onChange={(event) => void upload(event.target.files?.[0])} />
       </label>
     </div>
   );

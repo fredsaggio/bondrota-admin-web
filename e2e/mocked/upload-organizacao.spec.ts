@@ -4,7 +4,7 @@ import { mockApi, TEST_ADMIN } from '../support/api-mock';
 import { signIn } from '../support/actions';
 
 /**
- * Fotos e comprovantes tinham nome aleatorio numa pasta solta, e cada
+ * Fotos e documentos tinham nome aleatorio numa pasta solta, e cada
  * reenvio deixava o arquivo antigo orfao no bucket (nunca era apagado). Agora
  * o caminho e fixo por slot: "{entidade}/{id}/foto.ext" — reenviar substitui
  * em vez de acumular. Como o id nao existe antes do registro ser criado, a
@@ -85,4 +85,30 @@ test('reenviar a foto na mesma sessão de criação usa a mesma pasta de espera'
   // (upsert) em vez de deixar o primeiro órfão no bucket.
   const pastas = mock.uploadRequests.map((caminho) => caminho.replace(/foto\.png$/, ''));
   expect(pastas[0]).toBe(pastas[1]);
+});
+
+test('cliente não tem foto e envia os dois documentos obrigatórios', async ({ page }) => {
+  const mock = await abrirCadastros(page);
+  await page.getByRole('button', { name: 'Clientes', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo cliente' }).click();
+
+  await expect(page.getByLabel('Foto', { exact: true })).toHaveCount(0);
+
+  await page.getByLabel('Documento de identificação (RG ou CIN)').setInputFiles({
+    name: 'identidade.png',
+    mimeType: 'image/png',
+    buffer: PNG_1X1,
+  });
+  await page.getByLabel('Comprovante de residência').setInputFiles({
+    name: 'residencia.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4 documento de teste'),
+  });
+
+  await expect.poll(() => mock.uploadRequests).toHaveLength(2);
+  const [identidade, residencia] = mock.uploadRequests;
+  const pastaIdentidade = identidade.match(/^_novo\/([0-9a-f-]{36})\/documento-identificacao\.png$/)?.[1];
+  const pastaResidencia = residencia.match(/^_novo\/([0-9a-f-]{36})\/comprovante-residencia\.pdf$/)?.[1];
+  expect(pastaIdentidade).toBeTruthy();
+  expect(pastaResidencia).toBe(pastaIdentidade);
 });

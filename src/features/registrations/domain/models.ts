@@ -34,5 +34,6 @@ export interface Vinculo {
 export interface VinculoComCliente extends Vinculo { cliente_nome: string; destino_nome: string }
 
 export interface Cliente {
-  id: number; nome: string; cpf: string; telefone: string; data_nasc: string; foto: string; vinculos?: Vinculo[];
+  id: number; nome: string; cpf: string; telefone: string; data_nasc: string;
+  documento_identificacao: string; comprovante_residencia: string; vinculos?: Vinculo[];
 }
